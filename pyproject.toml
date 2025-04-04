@@ -11,6 +11,9 @@ only-include = [
     "tests/examples",
     ".coveragerc",
     ".editorconfig",
+    ".pre-commit-config.yaml",
+    "manage.py",
+    "pyproject.toml",
     "pytest.ini",
     "ruff.toml",
     "uv.lock",
@@ -76,6 +79,8 @@ dev-dependencies = [
 ]
 native-tls = true
 
+[project.scripts]
+crane-fmu = "crane_fmu.cli.crane_fmu:main"
 
 [tool.mypy]
 plugins = [

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Generator
+from typing import Any, Generator
 
 import matplotlib.pyplot as plt
-from component_model.model import Model  # type: ignore
-from component_model.variable import Variable  # type: ignore
-from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
+from component_model.model import Model
+from component_model.variable import Variable
+from matplotlib.figure import Figure
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 from crane_fmu.boom import Boom
 
@@ -37,13 +38,13 @@ class Crane(Model):
         version: str = "0.1",
         u_angle: str = "deg",
         u_time: str = "s",
-        **kwargs,
+        **kwargs: Any,
     ):
         """Initialize the crane object."""
         super().__init__(name=name, description=description, author=author, version=version, **kwargs)
         self.u_angle = u_angle
         self.u_time = u_time
-        self._boom0 = Boom(
+        self._boom0: Boom = Boom(
             self,
             "fixation",
             "Fixation point of the crane to its parent object or fixed ground. Pseudo-boom object",
@@ -73,7 +74,7 @@ class Crane(Model):
         )
 
     @property
-    def boom0(self):
+    def boom0(self) -> Boom:
         return self._boom0
 
     @boom0.setter
@@ -85,9 +86,9 @@ class Crane(Model):
         """Iterate through the booms.
         If reverse=True, the last element is first found and the iteration produces the booms from end to start.
         """
-        boom = self._boom0
+        boom: Boom | None = self._boom0
         if reverse:
-            while boom.anchor1 is not None:  # walk to the end of the crane
+            while boom is not None and boom.anchor1 is not None:  # walk to the end of the crane
                 boom = boom.anchor1
         while boom is not None:
             yield boom
@@ -150,20 +151,20 @@ class Animation:
         crane: Crane,
         elements: dict[str, list] | None = None,
         interval: float = 0.1,
-        figsize=(9, 9),
-        xlim=(-10, 10),
-        ylim=(-10, 10),
-        zlim=(0, 10),
-        viewAngle: tuple = (20, 45, 0),
+        figsize: tuple[float, float] = (9, 9),
+        xlim: tuple[float, float] = (-10, 10),
+        ylim: tuple[float, float] = (-10, 10),
+        zlim: tuple[float, float] = (0, 10),
+        viewAngle: tuple[float, float, float] = (20, 45, 0),
     ):
         """Perform the needed initializations of an animation."""
-        self.crane = crane
-        self.elements = elements
-        self.interval = interval
+        self.crane: Crane = crane
+        self.elements: dict[str, Any] | None = elements
+        self.interval: float = interval
 
-        plt.ion()  # run the GUI event loop
-        self.fig = plt.figure(figsize=figsize, layout="constrained")
-        ax = Axes3D(fig=self.fig)
+        _ = plt.ion()  # run the GUI event loop
+        self.fig: Figure = plt.figure(figsize=figsize, layout="constrained")
+        ax: Axes3D = Axes3D(fig=self.fig)
         #        ax = plt.axes(projection="3d")
         ax.set_xlim(*xlim)
         ax.set_ylim(*ylim)
@@ -215,12 +216,14 @@ class Animation:
         assert isinstance(self.elements, dict), "elements dict required at this stage"
         for i, b in enumerate(self.crane.booms()):
             if "booms" in self.elements:
+                assert self.elements["booms"] is not None
                 self.elements["booms"][i][0].set_data_3d(
                     [b.origin[0], b.end[0]],
                     [b.origin[1], b.end[1]],
                     [b.origin[2], b.end[2]],
                 )
             if "c_m" in self.elements:
+                assert self.elements["c_m"] is not None
                 self.elements["c_m"][i].set_x(b.c_m_sub[1][0])
                 self.elements["c_m"][i].set_y(b.c_m_sub[1][1])
                 self.elements["c_m"][i].set_z(b.c_m_sub[1][2])

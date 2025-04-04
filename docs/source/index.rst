@@ -1,14 +1,18 @@
-.. crane_fmu documentation master file
+.. crane-fmu documentation master file
 
-crane_fmu package: Python-scripted generic crane and translation to FMU
-=======================================================================
+crane-fmu Documentation
+=======================
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
 
-   readme
-   modules
+   README
+   api
+   CHANGELOG
+   STYLEGUIDE
+   LICENSE
+
 
 Indices and tables
 ==================

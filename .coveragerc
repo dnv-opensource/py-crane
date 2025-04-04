@@ -1,0 +1,13 @@
+[paths]
+source =
+    src/crane_fmu
+    */site-packages/crane_fmu
+
+[run]
+source = crane_fmu
+branch = True
+
+[report]
+fail_under = 10.0
+show_missing = True
+skip_covered = True

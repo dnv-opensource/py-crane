@@ -8,6 +8,7 @@ import pytest
 from component_model.model import Model
 from component_model.variable import Check
 from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d import Axes3D
 
 from crane_fmu.boom import Boom
 from crane_fmu.crane import Crane
@@ -47,11 +48,19 @@ def test_mass_center():
         np_arrays_equal(Mc[1], _c, eps=1e-10)
 
     do_test(mass_center(((1, -1, 0, 0), (1, 1, 0, 0), (2, 0, 0, 0))), 4, (0, 0, 0))
-    do_test(
-        mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))),
-        4,
-        (0, 0, 0),
+    do_test(mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))), 4, (0, 0, 0))
+    do_test(mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))), 4, (0, 0, 0))
+
+
+def aligned(p_i):
+    """Check whether all points pi are on the same straight line."""
+    assert len(p_i) > 2, (
+        f"Checking whether points are on the same line should include at least 3 points. Got only {len(p_i)}"
     )
+    directions = [p_i[i] - p_i[0] for i in range(1, len(p_i))]
+    n_dir0 = directions[0] / np.linalg.norm(directions[0])
+    for i in range(1, len(directions)):
+        np_arrays_equal(n_dir0, directions[i] / np.linalg.norm(directions[i]))
 
 
 def pendulum_relax(rope: Boom, show: bool, steps: int = 1000, dt: float = 0.01):
@@ -169,7 +178,7 @@ def test_initial(crane):
         np_arrays_equal(b.velocity, (0, 0, 0))
 
     # Check center of mass calculation
-    M, c = mass_center([(b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)])
+    M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
     crane.calc_statics_dynamics()
     _M, _c = pedestal.c_m_sub
     assert abs(_M - M) < 1e-9, f"Masses {_M} != {M}"
@@ -180,7 +189,7 @@ def test_initial(crane):
     boom1.boom_setter((None, radians(90), None))
     boom2.boom_setter((None, radians(0), None))
     rope.mass = 1e-100
-    M, c = mass_center([(b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)])
+    M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
     crane.calc_statics_dynamics()
     _M, _c = fixation.c_m_sub
     assert abs(_M - M) < 1e-9, f"Masses {_M} != {M}"
@@ -192,7 +201,7 @@ def test_initial(crane):
     boom1.boom_setter((None, 0, None))
     boom2.boom_setter((None, 0, None))
     rope.mass = 1e-100
-    M, c = mass_center([(b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)])
+    M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
     crane.calc_statics_dynamics()
     _M, _c = pedestal.c_m_sub
     assert abs(_M - 2300) < 1e-9, f"Masses {_M} != {M}"

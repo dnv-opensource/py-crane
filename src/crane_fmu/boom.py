@@ -427,12 +427,13 @@ class Boom(object):
             assert isinstance(self.anchor0, Boom)
             anchor_to_com = com0 - self.anchor0.end
             anchor_to_com_len = np.linalg.norm(anchor_to_com)
-            if anchor_to_com_len >= com_len:  # rope is dragged (or unchanged). Normalize anchor_to_com
+            if anchor_to_com_len >= com_len:
+                # rope is dragged (or unchanged). Normalize anchor_to_com
                 return anchor_to_com / anchor_to_com_len
-            else:  # rope falls, keeping length constant
-                anchor_to_com[2] = -sqrt(com_len**2 - anchor_to_com[0] ** 2 - anchor_to_com[1] ** 2)
-                # we choose only the negative z-komponent, excluding loads in upper half
-                return anchor_to_com / com_len
+            # rope falls, keeping length constant
+            anchor_to_com[2] = -sqrt(com_len**2 - anchor_to_com[0] ** 2 - anchor_to_com[1] ** 2)
+            # we choose only the negative z-komponent, excluding loads in upper half
+            return anchor_to_com / com_len
         else:
             _angle = self.base_angles + self.boom[1:]
             return normalized(spherical_to_cartesian((self.length, *_angle)))

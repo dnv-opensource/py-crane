@@ -4,6 +4,7 @@ Note2 that plt.figure.canvas.mpl_connect( event, callback) enables more interact
 """
 
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure(figsize=(14, 9))
 # line = Line3D( [1,2], [3,4], [5,6])
