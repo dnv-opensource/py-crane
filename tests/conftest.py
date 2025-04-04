@@ -52,8 +52,8 @@ def _remove_output_dirs_and_files():
         rmtree(folder, ignore_errors=True)
     for pattern in output_files:
         for file in glob(pattern):
-            file = Path(file)
-            file.unlink(missing_ok=True)
+            _file = Path(file)
+            _file.unlink(missing_ok=True)
 
 
 @pytest.fixture(autouse=True)

@@ -14,7 +14,7 @@ from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
 
 
-def var_by_name(simulator: CosimExecution, name: str, comp: str | int = 1) -> dict:
+def var_by_name(simulator: CosimExecution, name: str, comp: str | int) -> dict:
     """Get the variable info from variable provided as name.
 
     Args:
@@ -107,21 +107,25 @@ def mobile_crane_system_structure(mobile_crane_fmu):
 def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
     """Stand-alone test of MobileCrane.fmu using OSP"""
 
-    def set_initial(name, value):
-        var = var_by_name(simulator, name, iCrane)
-        simulator.real_initial_value(slave_index=iCrane, variable_reference=var["reference"], value=value)
+    def set_initial(name: str, value: float):
+        var = var_by_name(simulator, name, _crane)
+        simulator.real_initial_value(slave_index=_crane, variable_reference=var["reference"], value=value)
 
     simulator = CosimExecution.from_osp_config_file(str(mobile_crane_system_structure))
+    assert isinstance(simulator, CosimExecution)
     crane = CosimLocalSlave(fmu_path=str(mobile_crane_fmu), instance_name="mobileCrane")
-    iCrane = simulator.add_local_slave(crane)
+    assert isinstance(crane, CosimLocalSlave)
+    _crane = simulator.add_local_slave(crane)
+    assert isinstance(_crane, int)
     sim_status = simulator.status()
     assert sim_status.current_time == 0
     assert CosimExecutionState(sim_status.state) == CosimExecutionState.STOPPED
     _ = simulator.slave_infos()
     #    print("DIR", dir(simulator))
     #    print( simulator.execution_status)
-    iCrane = simulator.slave_index_from_instance_name("mobileCrane")
-    vars = simulator.slave_variables(iCrane)
+    _crane = simulator.slave_index_from_instance_name("mobileCrane") or -1
+    assert _crane >= 0, "Slave index of 'mobileCrane' not found"
+    vars = simulator.slave_variables(_crane)
     for var in vars:
         print(f"Slave variable (crane) ({var.reference}): {var.name}")
     assert vars[0].name.decode() == "fixation_mass"
@@ -130,9 +134,9 @@ def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
     f_t = CosimObserver.create_time_series()
     simulator.add_observer(observer=f_t)
     # 9,10,11 are the torque components, 34 is the boom_angularVelocity
-    assert f_t.start_time_series(slave_index=iCrane, value_reference=9, variable_type=CosimVariableType.REAL)
-    assert f_t.start_time_series(slave_index=iCrane, value_reference=10, variable_type=CosimVariableType.REAL)
-    assert f_t.start_time_series(slave_index=iCrane, value_reference=11, variable_type=CosimVariableType.REAL)
+    assert f_t.start_time_series(slave_index=_crane, value_reference=9, variable_type=CosimVariableType.REAL)
+    assert f_t.start_time_series(slave_index=_crane, value_reference=10, variable_type=CosimVariableType.REAL)
+    assert f_t.start_time_series(slave_index=_crane, value_reference=11, variable_type=CosimVariableType.REAL)
     manipulator = CosimManipulator.create_override()
     simulator.add_manipulator(manipulator=manipulator)
     # Variable references and settings (as in test_mobile_crane_fmi):
@@ -146,14 +150,17 @@ def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
 
     res = simulator.simulate_until(target_time=1e9)  # automatic stepping with stopTime in nanos (alternative: .step())
     print(f"Ran OSP simulation. Success: {res}")
-    t, s, torque0 = f_t.time_series_real_samples(iCrane, value_reference=9, from_step=1, sample_count=11)
-    t, s, torque1 = f_t.time_series_real_samples(iCrane, value_reference=10, from_step=1, sample_count=11)
-    t, s, torque2 = f_t.time_series_real_samples(iCrane, value_reference=11, from_step=1, sample_count=11)
+    t, s, torque0 = f_t.time_series_real_samples(_crane, value_reference=9, from_step=1, sample_count=11)
+    t, s, torque1 = f_t.time_series_real_samples(_crane, value_reference=10, from_step=1, sample_count=11)
+    t, s, torque2 = f_t.time_series_real_samples(_crane, value_reference=11, from_step=1, sample_count=11)
     for i in range(len(t)):
-        print(f"{t[i]/1e9}, {torque0[i]}, {torque1[i]}, {torque2[i]}")
+        print(f"{t[i] / 1e9}, {torque0[i]}, {torque1[i]}, {torque2[i]}")
     print("Simulation finalized")
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    structure = Path(__file__).parent / "resources" / "OspSystemStructure.xml"
+    fmu = Path(__file__).parent / "resources" / "MobileCrane.fmu"
+    test_mobilecrane(structure, fmu)

@@ -11,9 +11,9 @@ ax = plt.axes(projection="3d")  # , data=line)
 dat = ax.plot([1, 2], [3, 4], [5, 6], linewidth=5)
 # print( dat, dat[0].get_data_3d()) # dat is a collection of 3d lines!
 
-ax.view_init(-140, 60)
+ax.view_init(-140, 60)  # type: ignore ## according to matplotlib documentation
 for x1 in range(10):
-    dat[0].set_data_3d([x1, 2], [3, 4], [5, 6])
+    dat[0].set_data_3d([x1, 2], [3, 4], [5, 6])  # type: ignore ## according to matplotlib documentation
     # print("x1", x1)
     plt.pause(1)
 

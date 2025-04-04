@@ -44,9 +44,9 @@ class SpecDirective(SphinxDirective):
         self.state.nested_parse(self.content, self.content_offset, spec_node)
 
         if not hasattr(self.env, "spec_all_specs"):
-            self.env.spec_all_specs = []
+            self.env.spec_all_specs = []  # type: ignore[attr-defined]
 
-        self.env.spec_all_specs.append(
+        self.env.spec_all_specs.append(  # type: ignore[attr-defined]
             {
                 "docname": self.env.docname,
                 "lineno": self.lineno,

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
+from typing import Generator
+
 import matplotlib.pyplot as plt
 from component_model.model import Model  # type: ignore
 from component_model.variable import Variable  # type: ignore
 from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
 
 from crane_fmu.boom import Boom
+
+logger = logging.getLogger(__name__)
 
 
 class Crane(Model):
@@ -64,7 +69,7 @@ class Crane(Model):
             causality="input",
             variability="continuous",
             start="0.0 kg" + "/" + u_time,
-            on_step=lambda t, dt: self.boom0[-1].change_mass(self.dLoad * dt),
+            on_step=lambda t, dt: self.boom0[-1].change_mass(self.dLoad * dt),  # type: ignore ## boom0[-1] is not None!
         )
 
     @property
@@ -76,7 +81,7 @@ class Crane(Model):
         assert isinstance(newVal, Boom), f"A boom object expected as first boom on crane. Got {type(newVal)}"
         self._boom0 = newVal
 
-    def booms(self, reverse=False):
+    def booms(self, reverse=False) -> Generator[Boom]:
         """Iterate through the booms.
         If reverse=True, the last element is first found and the iteration produces the booms from end to start.
         """
@@ -86,7 +91,7 @@ class Crane(Model):
                 boom = boom.anchor1
         while boom is not None:
             yield boom
-            boom = boom.anchor0 if reverse else boom.anchor1
+            boom = boom.anchor0 if reverse else boom.anchor1  # type: ignore ## boom on rhs cannot be None
 
     def boom_by_name(self, name: str) -> Boom | None:
         """Retrieve a boom object by name. None if not found."""
@@ -116,15 +121,14 @@ class Crane(Model):
         except StopIteration:
             pass
 
-    def do_step(self, time: float, dt: float):
+    def do_step(self, current_time: float, step_size: float):
         """Do a simulation step of size `dt` at `time` ."""
-        status = super().do_step(time, dt)  # generic model step activities
+        logger.debug(f"CRANE.do_step {current_time}:")
+        status = super().do_step(current_time, step_size)  # generic model step activities
         # after all changed input variables are taken into account, update the statics and dynamics of the system
-        self.calc_statics_dynamics(dt)
-        # print(f"CRANE.do_step {currentTime}. calc_statics_dynamics: {status}")
-        # print("Torque: (" + str(round(currentTime, 2)) + ")", self.boom0.torque)
+        self.calc_statics_dynamics(step_size)
         # res = "".join( x.name+":"+str(x.end) for x in self.booms())
-        # print(f"Time {currentTime}, {res}")
+        logger.debug(f"CRANE.done. {status}, torque:{self.boom0.torque}")
         return status
 
 
@@ -144,7 +148,7 @@ class Animation:
     def __init__(
         self,
         crane: Crane,
-        elements: dict | None = None,
+        elements: dict[str, list] | None = None,
         interval: float = 0.1,
         figsize=(9, 9),
         xlim=(-10, 10),
@@ -183,7 +187,7 @@ class Animation:
                             b.c_m[0],
                             b.c_m[1],
                             b.c_m[2],
-                            s=str(int(b.mass.start)),
+                            s=str(int(b.mass.start)),  # type: ignore ## pyright confusion about 3D plots
                             color="black",
                         )
                     )
@@ -194,8 +198,8 @@ class Animation:
                 self.elements["c_m_sub"].append(
                     ax.plot(sub[0], sub[1], sub[2], marker="*", color="red", linestyle="")
                 )  # need to put them in as plot and not scatter3d, such that coordinates can be changed in a good way
-            if "currentTime" in self.elements:
-                self.elements["currentTime"].append(
+            if "current_time" in self.elements:
+                self.elements["current_time"].append(
                     ax.text(
                         ax.get_xlim()[0],
                         ax.get_ylim()[0],
@@ -205,9 +209,10 @@ class Animation:
                     )
                 )
 
-    def update(self, currentTime=None):
+    def update(self, current_time=None):
         """Based on the updated crane, update data as defined in elements."""
-        sub = [[], [], []]
+        sub: list[list] = [[], [], []]
+        assert isinstance(self.elements, dict), "elements dict required at this stage"
         for i, b in enumerate(self.crane.booms()):
             if "booms" in self.elements:
                 self.elements["booms"][i][0].set_data_3d(
@@ -216,16 +221,16 @@ class Animation:
                     [b.origin[2], b.end[2]],
                 )
             if "c_m" in self.elements:
-                self.elements["c_m"][i].set_x(b.c_m_absolute[0])
-                self.elements["c_m"][i].set_y(b.c_m_absolute[1])
-                self.elements["c_m"][i].set_z(b.c_m_absolute[2])
+                self.elements["c_m"][i].set_x(b.c_m_sub[1][0])
+                self.elements["c_m"][i].set_y(b.c_m_sub[1][1])
+                self.elements["c_m"][i].set_z(b.c_m_sub[1][2])
             if "c_m_sub" in self.elements:
                 for i in range(3):
                     sub[i].append(b.c_m_sub[1][i])
         if "c_m_sub" in self.elements and len(sub[0]):
             self.elements["c_m_sub"][0][0].set_data_3d(sub[0], sub[1], sub[2])
-        if "currentTime" in self.elements and currentTime is not None:
-            self.elements["currentTime"][0].set_text("time=" + str(round(currentTime, 1)))
+        if "current_time" in self.elements and current_time is not None:
+            self.elements["current_time"][0].set_text("time=" + str(round(current_time, 1)))
 
         self.fig.canvas.draw_idle()  # drawing updated values
         self.fig.canvas.flush_events()  # This will run the GUI event loop until all UI events currently waiting have been processed

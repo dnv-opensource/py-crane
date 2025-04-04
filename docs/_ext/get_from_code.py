@@ -1,11 +1,14 @@
 """Module introducing the Sphinx extension get-from-code, fetching docstrings, string representations, ... from code."""
 
 import importlib
+import logging
 
 from docutils import nodes  # type: ignore
 
 # from docutils.parsers.rst import Directive
 from sphinx.util.docutils import SphinxDirective
+
+logger = logging.getLogger(__name__)
 
 
 class GetFromCode(SphinxDirective):
@@ -25,8 +28,9 @@ class GetFromCode(SphinxDirective):
         obj = importlib.import_module(sPkg + "." + sMod)
         while len(sObj):
             sSub, _, sObj = sObj.partition(".")
-            obj = getattr(obj, sSub, "not found")
-        print(
+            obj = getattr(obj, sSub)
+            assert obj is not None, f"Attribute {sSub} of {obj} not found"
+        logger.debug(
             "INFO [" + self.arguments[0] + "] Type:",
             type(obj),
             ", __name__: " + type(obj).__name__,
@@ -42,15 +46,16 @@ class GetFromCode(SphinxDirective):
                 text = "Type " + self.typ + " not yet implemented"
         elif isinstance(obj, (complex, float, int, str, list, dict, tuple)):  # no docstring
             text = str(obj).strip()
-        else:  # if type(obj).__name__ in ('module','type','function') or isinstance( obj, type): # objects where docstring should be returned
+        elif isinstance(obj.__doc__, str):
             text = obj.__doc__.strip()
+        else:
+            raise NotImplementedError(f"Unhandled situation obj:{obj}") from None
 
-        self.content = nodes.paragraph(text=text)
         if self.typ is None:  # need to parse the extracted text
             parNode = nodes.paragraph(text="")  # use an empty paragraph node as parent
             self.state.nested_parse(self.content, 0, parNode)  # here the content of the retrieved text is parsed
         else:  # use the text as is
-            parNode = self.content
+            parNode = nodes.paragraph(text=text)
         return [parNode]
 
 

@@ -67,8 +67,8 @@ class MobileCrane(Crane):
         # make sure that _comSub is calculated for all booms:
         self.calc_statics_dynamics(None)
 
-    def do_step(self, currentTime, stepSize):
-        status = super().do_step(currentTime, stepSize)
-        # print(f"Time {currentTime}, {self.rope_tip}")
+    def do_step(self, current_time: float, step_size: float):
+        status = super().do_step(current_time, step_size)
+        # print(f"Time {current_time}, {self.booms("rope").end}")
         # print(f"MobileCrane.do_step. Status {status}")
         return status
