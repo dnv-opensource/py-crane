@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure()
-ax: Axes3D = fig.add_subplot(projection="3d")
+ax = fig.add_subplot(projection="3d")
 
 
 def gen(n):
@@ -25,18 +25,25 @@ data = np.array(list(gen(N))).T
 (line,) = ax.plot(data[0, 0:1], data[1, 0:1], data[2, 0:1])
 
 # Setting the axes properties
-ax.set_xlim3d([-1.0, 1.0])
+ax.set_xlim((-1.0, 1.0))
 ax.set_xlabel("X")
 
-ax.set_ylim3d([-1.0, 1.0])
+ax.set_ylim((-1.0, 1.0))
 ax.set_ylabel("Y")
 
-ax.set_zlim3d([0.0, 10.0])
-ax.set_zlabel("Z")
+ax.set_zlim((0.0, 10.0))  # type: ignore  ## according to matplotlib documentation
+ax.set_zlabel("Z")  # type: ignore  ## according to matplotlib documentation
 
 print("Before animation.", N, len(data))
 
-ani = animation.FuncAnimation(fig, update, frames=N, fargs=(data, line), interval=10000 / N, blit=False)
+ani = animation.FuncAnimation(
+    fig,
+    update,  # type: ignore  ## return value of update() can be omitted if blit=False!
+    frames=N,
+    fargs=(data, line),
+    interval=10000 / N,
+    blit=False,
+)
 explanation = """
 class matplotlib.animation.FuncAnimation(fig, func, frames=None, init_func=None, fargs=None, save_count=None, *, cache_frame_data=True, **kwargs)
 `FuncAnimation <https://matplotlib.org/stable/api/_as_gen/matplotlib.animation.FuncAnimation.html>`_

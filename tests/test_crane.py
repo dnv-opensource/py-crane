@@ -1,4 +1,6 @@
+import logging
 from math import radians, sqrt
+from typing import Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,11 +12,10 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from crane_fmu.boom import Boom
 from crane_fmu.crane import Crane
-from crane_fmu.logger import get_module_logger
 
 # from mpl_toolkits.mplot3d.art3d import Line3D
 
-logger = get_module_logger(__name__, level=1)
+logger = logging.getLogger(__name__)
 
 
 def np_arrays_equal(arr1, arr2, dtype="float", eps=1e-7):
@@ -23,16 +24,16 @@ def np_arrays_equal(arr1, arr2, dtype="float", eps=1e-7):
     assert len(arr1) == len(arr2), "Length not equal!"
     if isinstance(arr2, (tuple, list)):
         arr2 = np.array(arr2, dtype=dtype)
-    assert isinstance(arr1, np.ndarray) and isinstance(
-        arr2, np.ndarray
-    ), "At least one of the parameters is not an ndarray!"
+    assert isinstance(arr1, np.ndarray) and isinstance(arr2, np.ndarray), (
+        "At least one of the parameters is not an ndarray!"
+    )
     assert arr1.dtype == arr2.dtype, f"Arrays are of type {arr1.dtype} != {arr2.dtype}"
 
     for i in range(len(arr1)):
         assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
 
 
-def mass_center(xs: tuple):
+def mass_center(xs: Sequence[Sequence]):
     """Calculate the total mass center of a number of point masses provided as 4-tuple"""
     M, c = 0.0, np.array((0, 0, 0), float)
     for x in xs:
@@ -48,13 +49,14 @@ def test_mass_center():
 
     do_test(mass_center(((1, -1, 0, 0), (1, 1, 0, 0), (2, 0, 0, 0))), 4, (0, 0, 0))
     do_test(mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))), 4, (0, 0, 0))
+    do_test(mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))), 4, (0, 0, 0))
 
 
 def aligned(p_i):
     """Check whether all points pi are on the same straight line."""
-    assert (
-        len(p_i) > 2
-    ), f"Checking whether points are on the same line should include at least 3 points. Got only {len(p_i)}"
+    assert len(p_i) > 2, (
+        f"Checking whether points are on the same line should include at least 3 points. Got only {len(p_i)}"
+    )
     directions = [p_i[i] - p_i[0] for i in range(1, len(p_i))]
     n_dir0 = directions[0] / np.linalg.norm(directions[0])
     for i in range(1, len(directions)):
@@ -160,17 +162,20 @@ def test_initial(crane):
     assert pedestal._mass.unit == ("kilogram",), f"Mass unit {pedestal._mass.unit}"
     assert pedestal._mass.range == ((2000.0, 2000.0),), "Default mass range of booms is 'fixed'"
     assert rope._mass.range == ((50.0, 2000.0),), "Ropes should receive an explicit mass range"
-    np_arrays_equal(crane.pedestal_end, boom1.origin)
+    np_arrays_equal(pedestal.end, boom1.origin)
     np_arrays_equal(boom1.origin, (0, 0, 3.0))
     np_arrays_equal(boom1.direction, (1, 0, 0))
     assert boom1.length == 10
-    np_arrays_equal(crane.boom1_end, boom2.origin)
+    np_arrays_equal(boom1.end, boom2.origin)
     np_arrays_equal(boom2.origin, (10, 0, 3))
     np_arrays_equal(boom2.direction, (-1, 0, 0))
     assert boom2.length == 5
-    np_arrays_equal(crane.boom2_end, (5, 0, 3))
+    np_arrays_equal(boom2.end, (5, 0, 3))
     np_arrays_equal(rope.origin, (5, 0, 3))
     np_arrays_equal(rope.end, (5, 0, 2.5))
+    for b in crane.booms():
+        np_arrays_equal(b.angularVelocity, (0, 0))
+        np_arrays_equal(b.velocity, (0, 0, 0))
 
     # Check center of mass calculation
     M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
@@ -205,36 +210,38 @@ def test_initial(crane):
 
 
 def test_getter_setter(crane):
-    """Test that value getter and setter functions allow access to all variables."""
+    """Test that value getter and setter functions allow access to all variables.
+
+    Note: getattr() and setattr() relate to raw scalars/vectors
+          getter() and setter() relate to Sequences and are display-transformed
+    """
     for _, v in crane.vars.items():
         if v is not None:
             v._check = v._check & Check.units  # switch off range checking
-            val_raw = getattr(v.owner, v.local_name, None)
+            val_raw = getattr(v.owner, v.local_name, None)  # raw value as accessed from model
             assert val_raw is not None, f"Raw value of {v.name} is not accessible"
+            if len(v) == 1:
+                val_raw = (val_raw,)
             val_get = v.getter()
+            logger.info(f"Variable {v.name}, len:{len(v)}, raw:{val_raw}, getter:{val_get}")
             for k in range(len(v)):
-                val = val_get[k] if len(v) > 1 else val_get
-
                 if v.display[k] is None:
-                    assert abs(val - (val_raw if len(v) == 1 else val_raw[k])) < 1e-9
+                    assert abs(val_get[k] - val_raw[k]) < 1e-9
                 else:  # display transformation needed
-                    assert abs(v.display[k][1](val) - (val_raw if len(v) == 1 else val_raw[k])) < 1e-9
+                    assert abs(v.display[k][1](val_get[k]) - val_raw[k]) < 1e-9
 
             if v.local_name != "end" and v.name != "rope_boom":  # these cannot be set directly
                 setattr(v.owner, v.local_name, 2 * getattr(v.owner, v.local_name))
+                val_get = v.getter()
                 for k in range(len(v)):
-                    val = v.getter()[k] if len(v) > 1 else v.getter()
                     if v.display[k] is None:
-                        assert 0.5 * val == (val_raw if len(v) == 1 else val_raw[k])
+                        assert 0.5 * val_get[k] == val_raw[k]
                     else:  # display transformation needed
-                        assert v.display[k][1](0.5 * val) == (val_raw if len(v) == 1 else val_raw[k])
+                        assert v.display[k][1](0.5 * val_get[k]) == val_raw[k]
                 v.setter(val_raw)  # set back to original value
+                val_get = v.getter()  # get and transform units
                 for k in range(len(v)):
-                    val = v.getter()[k] if len(v) > 1 else v.getter()
-                    if v.display[k] is None:
-                        assert abs(val - (val_raw if len(v) == 1 else val_raw[k])) < 1e-9
-                    else:  # display transformation needed
-                        assert abs(v.display[k][1](val) - (val_raw if len(v) == 1 else val_raw[k])) < 1e-9
+                    assert abs(val_get[k] - val_raw[k]) < 1e-9
 
 
 # @pytest.mark.skip()
@@ -244,17 +251,17 @@ def test_pendulum(crane, show):
     r.boom_setter((1, None, None))
     np_arrays_equal(r.origin, (5, 0, 3))
     np_arrays_equal(r.end, (5, 0, 2))
-    z_pos: list[float] = [2]
-    speed: list[float] = [0]
-    time: list[float] = [0]
+    z_pos: list[float] = [2.0]
+    speed: list[float] = [0.0]
+    time: list[float] = [0.0]
     # => pendulum with origin at [5,0,3] with length 1m (down)
     angle: float = 0.0
-    crane.currentTime = 0
-    dt = 0.01
-    while crane.currentTime < 1:
-        crane.currentTime += dt
-        angle += 20 * dt
-        time.append(crane.currentTime)
+    crane.current_time = 0.0
+    dt: float = 0.01
+    while crane.current_time < 1:
+        crane.current_time += dt
+        angle += 20.0 * dt
+        time.append(crane.current_time)
         # crane.pedestal_boom = (None, None, angle)
         p.boom_setter((None, None, radians(angle)))
         crane.calc_statics_dynamics(dt)
@@ -278,9 +285,14 @@ def test_pendulum(crane, show):
 def test_sequence(crane, show):
     f, p, b1, b2, r = [b for b in crane.booms()]
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Initial state. Crane folded")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=True,
+            title="test_sequence(). Initial state. Crane folded",
+        )
     np_arrays_equal(r.origin + r.length * r.direction, (5, 0, 2.5))
-    np_arrays_equal(crane.rope_end, (5, 0, 2.5))
+    np_arrays_equal(r.end, (5, 0, 2.5))
     # boom1 up
     b1.boom_setter((None, 0, None))
     np_arrays_equal(r.end, (0 + 0.5 / sqrt(2), 0, 3 + 10 - 5 - 0.5 / sqrt(2)), eps=0.1)  # somewhat lower due to length
@@ -291,26 +303,52 @@ def test_sequence(crane, show):
     pendulum_relax(r, show=False)
     np_arrays_equal(r.end, [(10 - 5) / sqrt(2), 0, 3 - 0.5 + (10 - 5) / (sqrt(2))], eps=0.001)
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). boom 1 at 45 degrees.")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=True,
+            title="test_sequence(). boom 1 at 45 degrees.",
+        )
     # boom2 0 deg (in line with boom1)
     b2.boom_setter((None, radians(0), None))
     pendulum_relax(r, show=False)
     np_arrays_equal(r.end, [(10 + 5) / sqrt(2), 0, 3 - 0.5 + (10 + 5) / (sqrt(2))], eps=0.001)
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). boom2 in line with boom 1")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=True,
+            title="test_sequence(). boom2 in line with boom 1",
+        )
     # rope 0.5m -> 5m
     r.boom_setter((5.0, None, None))
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Rope 0.5m -> 5m")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=True,
+            title="test_sequence(). Rope 0.5m -> 5m",
+        )
     np_arrays_equal(r.end, [(10 + 5) / sqrt(2), 0, 3 - 5 + (10 + 5) / (sqrt(2))], eps=0.001)
     # turn base 45 deg
     p.boom_setter((None, None, radians(45)))
     pendulum_relax(r, show=False)
     np_arrays_equal(
-        r.end, ((10 + 5) / sqrt(2) / sqrt(2), (10 + 5) / sqrt(2) / sqrt(2), 3 - 5 + (10 + 5) / (sqrt(2))), eps=0.001
+        r.end,
+        (
+            (10 + 5) / sqrt(2) / sqrt(2),
+            (10 + 5) / sqrt(2) / sqrt(2),
+            3 - 5 + (10 + 5) / (sqrt(2)),
+        ),
+        eps=0.001,
     )
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Turn base 45 degrees")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=True,
+            title="test_sequence(). Turn base 45 degrees",
+        )
 
     len_0 = r.length
     # boom1 up. Dynamic
@@ -339,12 +377,12 @@ def test_change_length(crane, show):
 
 
 # @pytest.mark.skip()
-def test_boom_position(crane, show):
+def test_boom_position(crane):
     """Testing boom positions which are also used in MobileCrane.cases"""
     f, p, b1, b2, r = [b for b in crane.booms()]
-    np_arrays_equal(crane.pedestal_end, (0, 0, 3))
-    np_arrays_equal(crane.boom1_end, (10, 0, 3))
-    np_arrays_equal(crane.boom2_end, (5, 0, 3))
+    np_arrays_equal(p.end, (0, 0, 3))
+    np_arrays_equal(b1.end, (10, 0, 3))
+    np_arrays_equal(b2.end, (5, 0, 3))
 
     p._boom.setter(np.array((3, 0, 90), float))  # turn pedestal around z-axis 90 deg
     np_arrays_equal(b1.end, (0, 10, 3.0))
@@ -374,7 +412,12 @@ def test_rotation(crane, show):
     np_arrays_equal(f.torque, f._torque.getter())
     np_arrays_equal(f.torque, (-9.81 * 2350 * 0.68085, 0, 0), eps=0.5)
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=False, title="test_rotation(). Before rotation. b1 east.")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=False,
+            title="test_rotation(). Before rotation. b1 east.",
+        )
 
     p.boom_setter((None, None, radians(-90)))  # turn p so that b1 south
     np_arrays_equal(b1.direction, (0, -1, 0))
@@ -388,7 +431,12 @@ def test_rotation(crane, show):
     np_arrays_equal(f.torque, f._torque.getter())
     np_arrays_equal(f.torque, (-9.81 * -400, 9.81 * -2000, 0), eps=0.5)
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=False, title="test_rotation(). Pedestal turned => b1 south.")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=False,
+            title="test_rotation(). Pedestal turned => b1 south.",
+        )
 
 
 # @pytest.mark.skip()
@@ -411,7 +459,12 @@ def test_c_m(crane, show):
     # update all subsystem center of mass points. Need to do that from last boom!
     crane.calc_statics_dynamics()
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=False, title="test_c_m(). All booms along a line in z-direction")
+        show_crane(
+            crane,
+            markCOM=True,
+            markSubCOM=False,
+            title="test_c_m(). All booms along a line in z-direction",
+        )
     np_arrays_equal(b2.c_m_sub[1], b2.origin + b2.c_m)
     np_arrays_equal(b1.c_m_sub[1], (0, 0, 3 + 5 + 100 / 300 * (15.5 - 8)))
     assert p.c_m_sub[1][2] == 1.5 + 300 / 2300 * (b1.c_m_sub[1][2] - 1.5)
@@ -427,13 +480,13 @@ def animate_sequence(crane, seq=(), nSteps=10):
     """
     for b, a in seq:
         #        setattr( crane, b.name+'_angularVelocity', (radians(a) / nSteps))
-        b._angularVelocity.setter((radians(a / nSteps)))
+        b._angularVelocity.setter((radians(a / nSteps), None))
         for _ in range(nSteps):
             b.angular_velocity_step(None, None)
             # update all subsystem center of mass points. Need to do that from last boom!
             crane.calc_statics_dynamics(dt=None)
             yield (crane)
-        b._angularVelocity.setter(0.0)
+        b._angularVelocity.setter((0.0, None))
 
 
 # @pytest.mark.skip("Animate crane movement")
@@ -445,7 +498,7 @@ def test_animation(crane, show):
         """Perform the needed initializations."""
         ax.set_xlim(-10, 10)
         ax.set_ylim(-10, 10)
-        ax.set_zlim(0, 10)
+        ax.set_zlim(0, 10)  # type: ignore [attr-defined] ## according to matplotlib recommendations
         for b in crane.booms():
             lw = {"pedestal": 10, "rope": 2}.get(b.name, 5)
             lines.append(
@@ -468,14 +521,14 @@ def test_animation(crane, show):
 
     f, p, b1, b2, r = list(crane.booms())
     fig = plt.figure(figsize=(9, 9), layout="constrained")
-    ax: Axes3D = plt.axes(projection="3d")  # , data=line)
+    ax = plt.axes(projection="3d")  # , data=line)
     lines = []
 
     _ = FuncAnimation(
         fig,
-        update,
+        update,  # type: ignore  ## this is a function!
         frames=animate_sequence(crane, seq=((p, -90), (b1, -45), (b2, 180))),
-        init_func=init,
+        init_func=init,  # type: ignore  ## this is a function!
         interval=1000,
         blit=False,
         cache_frame_data=False,
@@ -489,10 +542,10 @@ def show_crane(_crane, markCOM=True, markSubCOM=True, title: str | None = None):
     # update all subsystem center of mass points. Need to do that from last boom!
     _crane.calc_statics_dynamics(dt=None)
     fig = plt.figure(figsize=(9, 9), layout="constrained")
-    ax: Axes3D = fig.add_subplot(projection="3d")  # Note: this loads Axes3D implicitly
+    ax = fig.add_subplot(projection="3d")  # Note: this loads Axes3D implicitly
     ax.set_xlim(-10, 10)
     ax.set_ylim(-10, 10)
-    ax.set_zlim(0, 10)
+    ax.set_zlim(0, 10)  # type: ignore [attr-defined] ## according to matplotlib recommendations
 
     lines = []
     c_ms = []
@@ -511,9 +564,9 @@ def show_crane(_crane, markCOM=True, markSubCOM=True, title: str | None = None):
             #                print("SHOW_COM", b.name, b.c_m)
             c_ms.append(
                 ax.text(
-                    b.c_m[0],
-                    b.c_m[1],
-                    b.c_m[2],
+                    x=b.c_m[0],
+                    y=b.c_m[1],
+                    z=b.c_m[2],
                     s=str(int(b._mass.start[0])),
                     color="black",
                 )
@@ -530,8 +583,14 @@ def show_crane(_crane, markCOM=True, markSubCOM=True, title: str | None = None):
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    # c = _crane()
+    logging.basicConfig(level=logging.INFO)
+    c = _crane()
+    # test_initial(c)
+    # test_getter_setter(c)
+    # test_pendulum(c, show=True)
     # test_sequence(c, True)
-    # test_animation(c, show=True)
+    # test_change_length(c, show=True)
+    # test_boom_position(c)
     # test_rotation(c, show=True)
     # test_c_m(c, show=True)
+    # test_animation(c, show=True)
