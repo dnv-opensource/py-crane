@@ -4,8 +4,6 @@ import logging
 from typing import Any, Generator
 
 import matplotlib.pyplot as plt
-from component_model.model import Model
-from component_model.variable import Variable
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
@@ -14,64 +12,27 @@ from crane_fmu.boom import Boom
 logger = logging.getLogger(__name__)
 
 
-class Crane(Model):
-    """A crane object built from stiff booms
-    and suitable to generate an FMU through `component_model` and `PythonFMU`.
+class Crane(object):
+    """A crane object built from stiff booms.
+
+    This is the basic Python model object without any (FMI) interface definitions.
+    The latter is defined in the related CraneFMU object (see crane_fmu).
     The crane should first be instantiated and then the booms added, using `.add_boom()` .
     The basic boom `fixation` is automatically added and accessible through `.boom0`
-    and can be used to access the other added booms through `booms(reverse=False)` .
-
-    Args:
-        name (str): the name of the crane instant
-        description (str) = None: An (optional
-        author (str) = "Siegfried Eisinger (DNV)
-        version (str) = "0.1"
-        u_angle (str) = "deg": angle display units (internally radians are used)
-        u_time (str) = 's': time display units (internally seconds are used)
+    and can be used to access the other added booms through `booms(reverse=False)`.    
     """
 
-    def __init__(
-        self,
-        name: str,
-        description: str = "A crane model",
-        author: str = "Siegfried Eisinger (DNV)",
-        version: str = "0.1",
-        u_angle: str = "deg",
-        u_time: str = "s",
-        **kwargs: Any,
-    ):
+    def __init__(self):
         """Initialize the crane object."""
-        super().__init__(name=name, description=description, author=author, version=version, **kwargs)
-        self.u_angle = u_angle
-        self.u_time = u_time
-        self._boom0: Boom = Boom(
+        self._boom0 = Boom(
             self,
             "fixation",
             "Fixation point of the crane to its parent object or fixed ground. Pseudo-boom object",
             anchor0=None,
-            mass="1e-10kg",
-            boom=(1e-10, "0" + u_angle, "0" + u_angle),
-            boom_rng=(None, (0, "180" + u_angle), ("-180" + u_angle, "180" + u_angle)),
+            mass=1e-10,
+            boom=(1e-10, 0, 0),
         )
         self.dLoad = 0.0
-        self._interface(u_angle, u_time)  # definition of crane level interface variables
-
-    def _interface(self, u_angle: str, u_time: str):
-        """Define crane level interface variables.
-
-        In addition the added booms define their own sub-variables.
-        Note that the mandatory 'fixation' boom also represents crane level variables like torque and velocity.
-        """
-
-        self._dLoad = Variable(  # input variable
-            self,
-            name="dLoad",
-            description="Load added (or taken off) per time unit to/from the end of the last boom (the hook)",
-            causality="input",
-            variability="continuous",
-            start="0.0 kg" + "/" + u_time,
-            on_step=lambda t, dt: self.boom0[-1].change_mass(self.dLoad * dt),  # type: ignore ## boom0[-1] is not None!
-        )
 
     @property
     def boom0(self) -> Boom:

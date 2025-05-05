@@ -5,12 +5,18 @@ from math import isnan, nan, sqrt
 from typing import Sequence
 
 import numpy as np
-from component_model.model import Model
-from component_model.variable import Variable, spherical_to_cartesian  # type: ignore
+from component_model.variable import spherical_to_cartesian  # , Variable
 
 # from crane_fmu.crane import Crane
 
 logger = logging.getLogger(__name__)
+
+def normalized(vec: np.ndarray):
+    """Return the normalized vector. Helper function."""
+    assert len(vec) == 3, f"{vec} should be a 3-dim vector"
+    norm = np.linalg.norm(vec)
+    assert norm > 0, f"Zero norm detected for vector {vec}"
+    return vec / norm
 
 
 class BoomInitError(Exception):
@@ -51,19 +57,17 @@ class Boom(object):
        while derived internal variables are more complex (often 3D vectors)
 
     Args:
-        model (Model): The model object owning the boom.
-        name (str): The short name of the boom (unique within FMU)
+        model (Any): The model object owning the boom (cannot refer to the Crane)
+        name (str): The short name of the boom (unique within crane)
         description (str) = '':  An optional description of the boom
         anchor0 (Boom): the boom object to which this Boom is attached.
             There is exactly one boom where this is set to None, which is the crane `fixation`
             and which is automatically provided by the crane, i.e. for real booms this is never None.
-        mass (float): Parameter denoting the (assumed fixed) mass of the boom
-        mass_rng (tuple): Optional range of the mass, if the mass can be changed.
-            Normally only the last boom (the rope) has a variable mass (the load).
-        massCenter (float,tuple): Parameter denoting the (assumed fixed) position of the center of mass of the boom,
+        mass (float): Parameter denoting the (assumed fixed) mass of the boom in kg
+        mass_center (float,tuple): Parameter denoting the (assumed fixed) position of the center of mass of the boom,
             provided as portion of the length (as float).
             Optionally the absolute displacements in x- and y-direction (assuming the boom in z-direction) can be added
-            e.g. (0.5,'-0.5 m','1m'): halfway down the boom displaced 0.5m in the -x direction and 1m in the y direction
+            e.g. (0.5,-0.5, 1): (in m) halfway down the boom displaced 0.5m in the -x direction and 1m in the y direction
         boom (tuple): A tuple defining the boom relative to its parent in spherical (ISO 80000) coordinates.
             From the parent boom the following attributes are automatically inferred:
 
@@ -73,16 +77,12 @@ class Boom(object):
 
             The boom is then defined in local polar coordinates:
 
-            * length: the length of the boom (in length units)
+            * length: the length of the boom (in m)
             * polar: a rotation angle for a rotation around the negative x-axis (away from z-axis) against the clock.
             * azimuth: a rotation angle for a rotation around the positive z-axis against the clock.
 
-           :: note..: The boom and its range is used to keep length and local coordinate system up-to-date,
+           :: note..: The boom is used to keep length and local coordinate system up-to-date,
                while the active work variables are the cartesian origin, direction and length
-        boom_rng (tuple): Range for each of the boom components,
-            i.e. how much the boom length can be changed and how (much) it can be rotated
-            As normal, range components specified as None denote fixed components.
-            Most booms have only one (rotation) degree of freedom.
         damping (float)=0.0: optional possibility to implement a loose connection between booms.
 
             * if damping=0.0, the connection to the parent boom is stiff according to the boom angle setting
@@ -94,41 +94,25 @@ class Boom(object):
         animationLW (int)=5: Optional possibility to change the default line width when performing animations.
             E.g. the pedestal might be drawn with larger and the rope with smaller line width
 
-    With a crane object `crane` , instantiate like:
-
-    .. code-block:: python
-
-       pedestal = crane.add_boom(
-           name ='pedestal',
-           description = "The vertical crane base, on one side fixed to the vessel and
-                          on the other side the pedestal is fixed to it (can rotate around z-axis).
-                          The mass should include all additional items fixed to it, like the operator's cab",
-           mass = '2000.0 kg',
-           massCenter = (0.5, 0,'2 deg'),
-           boom = ('5.0 m', 0, '0deg'),
-           boom_rng = (None, (0,'360 deg'), None)
-           )
-
-
-    .. todo:: determine the range of forces
-    .. limitation:: The mass and the massCenter setting of booms is assumed constant. With respect to rope and hook of a crane this means that basically only the mass of the hook is modelled.
+    .. note:: This offers basic functionality. Variable changes and related updates are performed directly on the variables
     .. assumption:: Center of mass: `_c_m` is the local mass-center measured relative to origin. `_c_m_sub` is a global quantity
     """
 
     def __init__(
         self,
-        model: Model,
+        model: Any,
         name: str,
         description: str = "",
         anchor0: Boom | None = None,
-        mass: str = "1 kg",
-        mass_rng: tuple | None = None,
-        massCenter: float | tuple = 0.5,
-        boom: tuple = (1, 0, 0),
-        boom_rng: tuple = tuple(),
+        mass: float|str = 1.0,
+        #mass_rng: tuple | None = None,
+        mass_center: float | tuple = 0.5,
+        boom: tuple = (1.0, 0, 0),
+        #boom_rng: tuple = tuple(),
         damping: float = 0.0,
         animationLW: int = 5,
-    ):
+        **kwargs # for compatibility with derived classes
+    ):        
         self._model = model
         self.anchor0 = anchor0
         self.anchor1: Boom | None = None  # so far. If a boom is added, this is changed
@@ -142,32 +126,26 @@ class Boom(object):
         self.origin: np.ndarray
         if self.anchor0 is None:  # this defines the fixation of the crane as a 'pseudo-boom'
             boom = (1e-10, 0, 0)  # z-axis in spherical coordinates
-            boom_rng = tuple()
             self.origin = np.array((0, 0, -1e-10), float)
         else:
             self.origin = self.anchor0.end
             self.anchor0.anchor1 = self
-        self.mass: float = self._interface("mass", mass, mass_rng)
-        self.massCenter: list = list(massCenter) if isinstance(massCenter, tuple) else [massCenter, 0.0, 0.0]
-        self.boom: np.ndarray = self._interface("boom", boom, boom_rng)
+        assert isinstance( mass, float), f"At this stage mass should be a float. Found {type(mass)}"
+        self.mass = mass
+        self.mass_center: list = list(mass_center) if isinstance(mass_center, tuple) else [mass_center, 0.0, 0.0]
+        self.boom = np.array( boom, float)
         self.base_angles: np.ndarray = self.get_base_angles()
         self.direction = self.get_direction()
-        self.dummy = self._interface(
-            "end", self.origin + self.length * self.direction
-        )  #! local value is a function (property)
-        self._c_m: np.ndarray = self.c_m  # save the current value, running method self.c_m
+        #self._c_m = np.array( (0,0,0), float) # just to make _c_m known. Updated by method c_m
+        self.c_m  # save the current value, running method self.c_m
         self._c_m_sub: tuple[float, np.ndarray] = (self.mass, self._c_m)  # updated by calc_statics_dynamics
         if self.damping != 0.0:
             if self.damping < 0.5:
                 raise BoomInitError(f"Damping quality {self.damping} of {self.name} should be 0 or >0.5.") from None
             self._decayRate: float = self._calc_decayrate(self.length)
         # do a total re-calculation of _c_m_sub and torque (static) for this boom (trivial) and the reverse connected booms
-        self.angularVelocity: np.ndarray = self._interface(
-            "angularVelocity", (0, 0)
-        )  # initial value always set to (0,0) with units
-        self.lengthVelocity: float = self._interface("lengthVelocity", 0.0)
-        self.torque: np.ndarray = self._interface("torque", ("0 N*m", "0 N*m", "0 N*m"))
-        self.force: np.ndarray = self._interface("force", ("0 N", "0 N", "0 N"))
+        self.torque = np.array( (0,0,0), float)
+        self.force = np.array((0,0,0), float)
 
         self.calc_statics_dynamics(dt=None)
         logger.info(
@@ -185,111 +163,6 @@ class Boom(object):
             + str(self.damping)
         )
 
-    def _interface(self, name: str, start: str | float | tuple, rng: tuple | None = None):
-        """Define interface variables.
-        The function is kept separate from the code above to not clutter it too much.
-        Arguments are passed on from __init__, as these concern interface issues like range.
-        All variable values are registered with the boom as self.name+'_'+name,
-        such that they are accessible within the boom as self.(variable-name)
-        and within the model as self.(boom-name)_(variable-name).
-        In addition, the variable object itself is registered as self._(variable-name).
-        """
-        u_angle = self._model.u_angle  # type: ignore ## import Crane leads to circular ref. => only Model imported
-        if name == "mass":
-            var = self._mass = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_mass",
-                description="The total mass of boom " + name,
-                causality="input",
-                variability="continuous",
-                start=start,
-                rng=rng,
-            )
-            if not len(self._mass.unit):
-                logger.warning(f"Warning: Missing unit for mass of boom {self._name}. Include in the 'mass' parameter")
-        elif name == "boom":
-            assert isinstance(start, (tuple, list, np.ndarray)), (
-                f"The boom variable of {self.name} needs a proper 3D start value"
-            )
-            if start[0] == 0:
-                start = ("0 m", *start[1:])
-            for i in range(1, 3):
-                if start[i] == 0:
-                    start = (*start[:i], "0" + u_angle, *start[i + 1 :])
-                elif not isinstance(start[i], str) or u_angle not in start[i]:
-                    raise BoomInitError(f"All angles shall be provided as {u_angle}")
-            var = self._boom = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_boom",
-                description="The dimension and direction of the boom from anchor point to anchor point in m and spherical angles",
-                causality="input",
-                variability="continuous",
-                start=start,
-                rng=rng,
-                on_set=self.boom_setter,
-            )
-        elif name == "end":
-            var = self._end = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_end",
-                description="Cartesian vector of the end of the boom",
-                causality="output",
-                variability="continuous",
-                start=start,
-            )
-            self._end.getter = lambda: self.origin + self.boom[0] * self.direction  # type: ignore ## no method called!
-        elif name == "angularVelocity":
-            var = self._angularVelocity = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_angularVelocity",
-                description="Rotates boom arround origin according to its defined degree of freedom (polar/azimuth).",
-                causality="input",
-                variability="continuous",
-                start=("0 " + u_angle, "0 " + u_angle),
-                on_step=self.angular_velocity_step,
-                rng=(),
-            )
-        elif name == "lengthVelocity":
-            var = self._lengthVelocity = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_lengthVelocity",
-                description="Changes length of the boom (ifa allowed). Only for boom which initiates the length change!",
-                causality="input",
-                variability="continuous",
-                start=start,
-                rng=(),
-            )
-        elif name == "torque":
-            var = self._torque = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_torque",
-                description="""Torque contribution of the boom with respect to its origin,
-                               i.e. the sum of static and dynamic torques. Provided as 3D cartesian vector""",
-                causality="output",
-                variability="continuous",
-                initial="exact",
-                start=start,
-            )
-        elif name == "force":
-            var = self._force = Variable(
-                self._model,
-                owner=self,
-                name=self._name + "_force",
-                description="Total linear force of the crane with respect to its base, i.e. the sum of static and dynamic forces. Provided as 3D cartesian vector)",
-                causality="output",
-                variability="continuous",
-                initial="exact",
-                start=start,
-            )
-        else:
-            raise KeyError(f"Unknown name {name} in function interface") from None
-        return getattr(self, var.local_name)
 
     def __getitem__(self, idx: int | str):
         """Facilitate subscripting booms. 'idx' denotes the connected boom with respect to self.
@@ -324,7 +197,7 @@ class Boom(object):
 
     #     @property
     #     def boom(self):
-    #         return getattr(self._model, self._name + "_boom")  # access to value (owned by model)
+    #         return getattr(self._model, self._name + ".boom")  # access to value (owned by model)
 
     def boom_setter(self, val: Sequence[float | None]):
         """Set length and angles of boom (if allowed) and ensure consistency with other booms.
@@ -363,16 +236,6 @@ class Boom(object):
             logger.debug(f"Boom {self.name} changed to {self.boom}. Dir {self.direction}")
         return self.boom
 
-    def angular_velocity_step(self, t, dt):
-        """Step angular velocity. As this is the derivative of boom angles, boom angles are stepped."""
-        if self.angularVelocity[0] != 0 or self.angularVelocity[1] != 0:
-            if self.angularVelocity[0] != 0 and self.angularVelocity[1] != 0:
-                self.boom_setter((None, self.boom[1] + self.angularVelocity[0], self.boom[2] + self.angularVelocity[1]))
-            elif self.angularVelocity[0] != 0:
-                self.boom_setter((None, self.boom[1] + self.angularVelocity[0], None))
-            elif self.angularVelocity[1] != 0:
-                self.boom_setter((None, None, self.boom[2] + self.angularVelocity[1]))
-            logger.debug(f"Stepping angular {self.name}({self.angularVelocity}) => {self.boom}, dir:{self.direction}")
 
     @property
     def model(self):
@@ -392,8 +255,10 @@ class Boom(object):
 
     @property
     def c_m(self):
-        """Return the local center of mass point relative to self.origin."""
-        return self.massCenter[0] * self.length * self.direction + np.array((self.massCenter[1], self.massCenter[2], 0))
+        """Updates and returns the local center of mass point relative to self.origin."""
+        self._c_m = self.mass_center[0] * self.length * self.direction + np.array((self.mass_center[1], self.mass_center[2], 0))
+        return self._c_m
+    
 
     @property
     def c_m_sub(self):
@@ -422,7 +287,7 @@ class Boom(object):
         while self.anchor1.end represents the new anchor position.
         """
         if self.damping > 0:  # flexible joint (rope)
-            com_len = self.length * self.massCenter[0]  # length between anchor and c.o.m (unchanged!)
+            com_len = self.length * self.mass_center[0]  # length between anchor and c.o.m (unchanged!)
             com0 = self.origin + com_len * self.direction  # the previous absolute c.o.m. point
             assert isinstance(self.anchor0, Boom)
             anchor_to_com = com0 - self.anchor0.end
@@ -516,7 +381,7 @@ class Boom(object):
         -------
             updated velocity and acceleration (of c_m)
 
-        .. assumption:: the center of mass is on the boom line at _massCenter[0] relative distance from origin
+        .. assumption:: the center of mass is on the boom line at _mass_center[0] relative distance from origin
         .. math::
 
             \\ddot\vec r=-frac{\vec r \\cross (\vec r \\ cross \vec g)}{R^2} - frac{\\dot\vec r^2}{R^2} \vec r
@@ -536,7 +401,7 @@ class Boom(object):
         if self.damping != 0.0:
             assert self.anchor1 is None, "Pendulum movement is so far only implemented for the last boom (the rope)"
             # center of mass factor (we look on the c_m with respect to pendulum movements):
-            c = self.massCenter[0]
+            c = self.mass_center[0]
             R = c * self.length  # pendulum radius
             r = R * self.direction  # the current radius vector (of c_m) as copy
             # velocity at start of interval:
@@ -576,36 +441,5 @@ class Boom(object):
         elif newLength == 0.0:
             return 0
         else:
-            return sqrt(9.81 / (newLength * self.massCenter[0])) / sqrt(4 * self.damping - 1)
+            return sqrt(9.81 / (newLength * self.mass_center[0])) / sqrt(4 * self.damping - 1)
 
-    def change_length(self, dL: float):
-        """Change the length of the boom (if allowed)
-        Note: Instantaneous length velocity changes are accepted, even if they create (small) unrealistic falling movements.
-
-        Args:
-            dL (float): length change
-        """
-        self.boom_setter((self.boom[0] + dL, None, None))
-
-    def change_mass(self, dM: float, center: float | None = None):
-        """Change the mass of the boom, e.g. when adding or releasing a load at the rope.
-
-        Args:
-            dM (float): The added or subtracted mass
-            relCOM (float)=None: Optional possibility to change the relative c_m point along the boom (between 1e-6 and 1.0), i.e. changing self.massCenter
-
-        .. note:: We treat mass changes as non-dynamic effect (dt=None), since the change in c_m position should not be associated with a velocity or acceleration
-        .. note:: Mass changes have no direct effect on attached boom (which do normally not exist, since the load is often attached to the last boom)
-        """
-        if center is not None:
-            self.massCenter[0] = center
-        self.mass += dM
-        self._c_m = self.c_m  # re-calculate the own COM
-        # call from crane: self.calc_statistics_dynamics( dt=None, isInitiator=True) # re-calculate the static properties and inform parent booms of the change in c_m
-
-
-def normalized(vec: np.ndarray):
-    assert len(vec) == 3, f"{vec} should be a 3-dim vector"
-    norm = np.linalg.norm(vec)
-    assert norm > 0, f"Zero norm detected for vector {vec}"
-    return vec / norm

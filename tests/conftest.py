@@ -4,7 +4,7 @@ from pathlib import Path
 from shutil import rmtree
 
 import pytest
-from component_model.model import Model
+from crane_fmu.crane import Crane
 
 
 @pytest.fixture(scope="package", autouse=True)
@@ -46,10 +46,10 @@ def default_setup_and_teardown():
 
 @pytest.fixture(scope="session")
 def mobile_crane_fmu():
-    build_path = Path(__file__).parent / "resources"  # together with other crane files
+    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
     build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(
-        str(Path(__file__).parent / "resources" / "mobile_crane.py"),
+    fmu_path = Crane.build(
+        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
         project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
         dest=build_path,
     )

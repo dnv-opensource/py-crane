@@ -5,8 +5,6 @@ from typing import Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from component_model.model import Model
-from component_model.variable import Check
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -81,46 +79,40 @@ def crane(scope="module", autouse=True):
 
 
 def _crane():
-    Model.instances = []
-    crane = Crane("crane")
+    crane = Crane()
     _ = crane.add_boom(
-        name="pedestal",
-        description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
-        mass="2000.0 kg",
-        massCenter=(0.5, -1, 0.8),
-        boom=("3.0 m", "0deg", "0deg"),
-        boom_rng=(None, None, ("0deg", "360deg")),
+        name = "pedestal",
+        description = "The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
+        mass = 2000.0,
+        mass_center = (0.5, -1, 0.8),
+        boom = (3.0, 0, 0),
     )
     _ = crane.add_boom(
-        name="boom1",
-        description="The first boom. Can be lifted",
-        mass="200.0 kg",
-        massCenter=0.5,
-        boom=("10.0 m", "90deg", "0deg"),
-        boom_rng=(None, ("-90deg", "90deg"), None),
+        name = "boom1",
+        description = "The first boom. Can be lifted",
+        mass = 200.0,
+        mass_center = 0.5,
+        boom = (10.0, radians(90), 0),
     )
     _ = crane.add_boom(
-        name="boom2",
-        description="The second boom. Can be lifted whole range",
-        mass="100.0 kg",
-        massCenter=0.5,
-        boom=("5.0 m", "-180deg", "0deg"),
-        boom_rng=(None, ("-180deg", "180deg"), None),
+        name = "boom2",
+        description = "The second boom. Can be lifted whole range",
+        mass = 100.0,
+        mass_center =0.5,
+        boom =(5.0, radians(-180), 0),
     )
     _ = crane.add_boom(
-        name="rope",
-        description="The rope fixed to the last boom. Flexible connection",
-        mass="50.0 kg",  # so far basically the hook
-        mass_rng=("50 kg", "2000 kg"),
-        massCenter=1.0,
-        boom=("0.5 m", "180deg", "0 deg"),
-        boom_rng=(("0.5m", "20m"), ("90deg", "270deg"), ("-180deg", "180deg")),
-        damping=2,
+        name ="rope",
+        description ="The rope fixed to the last boom. Flexible connection",
+        mass = 50.0,  # so far basically the hook
+        mass_rng = (50, 2000),
+        mass_center = 1.0,
+        boom = (0.5, radians(180), 0),
+        damping=2.0,
     )
     return crane
 
 
-# @pytest.mark.skip()
 def test_initial(crane):
     """Test the initial state of the crane."""
     # test indexing of booms
@@ -147,6 +139,7 @@ def test_initial(crane):
     #    print( f"Boom {i}: {b.name}")
     assert list(crane.booms())[2].name == "boom1", "'boom1' from boom iteration expected"
     assert list(crane.booms(reverse=True))[1].name == "boom2", "'boom2' from reversed boom iteration expected"
+    assert pedestal in crane.booms(), "pedestal expected as boom"
 
     assert pedestal.length == 3.0
     assert boom1.length == 10.0
@@ -159,9 +152,6 @@ def test_initial(crane):
     np_arrays_equal(pedestal.direction, (0, 0, 1))
     np_arrays_equal(pedestal.c_m, (-1, 0.8, 1.5))
     assert pedestal.length == 3
-    assert pedestal._mass.unit == ("kilogram",), f"Mass unit {pedestal._mass.unit}"
-    assert pedestal._mass.range == ((2000.0, 2000.0),), "Default mass range of booms is 'fixed'"
-    assert rope._mass.range == ((50.0, 2000.0),), "Ropes should receive an explicit mass range"
     np_arrays_equal(pedestal.end, boom1.origin)
     np_arrays_equal(boom1.origin, (0, 0, 3.0))
     np_arrays_equal(boom1.direction, (1, 0, 0))
@@ -174,7 +164,6 @@ def test_initial(crane):
     np_arrays_equal(rope.origin, (5, 0, 3))
     np_arrays_equal(rope.end, (5, 0, 2.5))
     for b in crane.booms():
-        np_arrays_equal(b.angularVelocity, (0, 0))
         np_arrays_equal(b.velocity, (0, 0, 0))
 
     # Check center of mass calculation
@@ -185,7 +174,7 @@ def test_initial(crane):
     np_arrays_equal(_c, c)
 
     # simplify crane and perform manual torque calculation
-    pedestal.massCenter = (0.5, 0, 0)
+    pedestal.mass_center = (0.5, 0, 0)
     boom1.boom_setter((None, radians(90), None))
     boom2.boom_setter((None, radians(0), None))
     rope.mass = 1e-100
@@ -197,7 +186,7 @@ def test_initial(crane):
     np_arrays_equal(fixation.torque, (0, M * c[0] * 9.81, 0))
 
     # align booms and perform manual calculation
-    pedestal.massCenter = (0.5, 0, 0)
+    pedestal.mass_center = (0.5, 0, 0)
     boom1.boom_setter((None, 0, None))
     boom2.boom_setter((None, 0, None))
     rope.mass = 1e-100
@@ -208,40 +197,6 @@ def test_initial(crane):
     np_arrays_equal(_c, (0, 0, (2000 * 1.5 + 200 * 8 + 100 * 15.5) / 2300))
     np_arrays_equal(pedestal.torque, (0, 0, 0))
 
-
-def test_getter_setter(crane):
-    """Test that value getter and setter functions allow access to all variables.
-
-    Note: getattr() and setattr() relate to raw scalars/vectors
-          getter() and setter() relate to Sequences and are display-transformed
-    """
-    for _, v in crane.vars.items():
-        if v is not None:
-            v._check = v._check & Check.units  # switch off range checking
-            val_raw = getattr(v.owner, v.local_name, None)  # raw value as accessed from model
-            assert val_raw is not None, f"Raw value of {v.name} is not accessible"
-            if len(v) == 1:
-                val_raw = (val_raw,)
-            val_get = v.getter()
-            logger.info(f"Variable {v.name}, len:{len(v)}, raw:{val_raw}, getter:{val_get}")
-            for k in range(len(v)):
-                if v.display[k] is None:
-                    assert abs(val_get[k] - val_raw[k]) < 1e-9
-                else:  # display transformation needed
-                    assert abs(v.display[k][1](val_get[k]) - val_raw[k]) < 1e-9
-
-            if v.local_name != "end" and v.name != "rope_boom":  # these cannot be set directly
-                setattr(v.owner, v.local_name, 2 * getattr(v.owner, v.local_name))
-                val_get = v.getter()
-                for k in range(len(v)):
-                    if v.display[k] is None:
-                        assert 0.5 * val_get[k] == val_raw[k]
-                    else:  # display transformation needed
-                        assert v.display[k][1](0.5 * val_get[k]) == val_raw[k]
-                v.setter(val_raw)  # set back to original value
-                val_get = v.getter()  # get and transform units
-                for k in range(len(v)):
-                    assert abs(val_get[k] - val_raw[k]) < 1e-9
 
 
 # @pytest.mark.skip()
@@ -371,7 +326,6 @@ def test_change_length(crane, show):
     r.boom_setter((3, None, None))  # increase length
     pendulum_relax(r, show=False)
     np_arrays_equal(r.end, (15.0, 0, 0), eps=0.001)
-    np_arrays_equal(r.end, r._end.getter())
     if show:
         show_crane(crane, title="test_change_length(). rope -> 3m")
 
@@ -384,7 +338,7 @@ def test_boom_position(crane):
     np_arrays_equal(b1.end, (10, 0, 3))
     np_arrays_equal(b2.end, (5, 0, 3))
 
-    p._boom.setter(np.array((3, 0, 90), float))  # turn pedestal around z-axis 90 deg
+    p.boom_setter((3, 0, radians(90)))  # turn pedestal around z-axis 90 deg
     np_arrays_equal(b1.end, (0, 10, 3.0))
 
 
@@ -409,7 +363,6 @@ def test_rotation(crane, show):
     np_arrays_equal(b2.c_m, (-2.5, 0, 0))
     crane.calc_statics_dynamics()
     np_arrays_equal(f.c_m_sub[1], (0, 0.68085, 1.71), eps=0.05)
-    np_arrays_equal(f.torque, f._torque.getter())
     np_arrays_equal(f.torque, (-9.81 * 2350 * 0.68085, 0, 0), eps=0.5)
     if show:
         show_crane(
@@ -428,7 +381,6 @@ def test_rotation(crane, show):
     np_arrays_equal(b2.c_m, (0, 2.5, 0))
     crane.calc_statics_dynamics()
     np_arrays_equal(f.c_m_sub[1], (-2000 / 2350, -400 / 2350, 1.71), eps=0.05)
-    np_arrays_equal(f.torque, f._torque.getter())
     np_arrays_equal(f.torque, (-9.81 * -400, 9.81 * -2000, 0), eps=0.5)
     if show:
         show_crane(
@@ -443,7 +395,7 @@ def test_rotation(crane, show):
 def test_c_m(crane, show):
     # Note: Boom.c_m is a local measure, calculated from Boom.origin
     f, p, b1, b2, r = [b for b in crane.booms()]
-    r.change_mass(-50)  # to get the simple c_m calculations right
+    r.mass -= 50
     if show:
         show_crane(crane, markCOM=True, markSubCOM=False, title="test_c_m(). Initial")
     # initial c_m location
@@ -479,14 +431,15 @@ def animate_sequence(crane, seq=(), nSteps=10):
     To do updates of statics and dynamics we need to know the last boom.
     """
     for b, a in seq:
-        #        setattr( crane, b.name+'_angularVelocity', (radians(a) / nSteps))
-        b._angularVelocity.setter((radians(a / nSteps), None))
+        if b.name == 'pedestal': # azimuthal movement
+            db = np.array( (0, 0, radians(a / nSteps)), float)
+        else: # polar movement
+            db = np.array( (0, radians(a / nSteps), 0), float)
         for _ in range(nSteps):
-            b.angular_velocity_step(None, None)
+            b.boom_setter( b.boom + db), 
             # update all subsystem center of mass points. Need to do that from last boom!
             crane.calc_statics_dynamics(dt=None)
             yield (crane)
-        b._angularVelocity.setter((0.0, None))
 
 
 # @pytest.mark.skip("Animate crane movement")
@@ -567,7 +520,7 @@ def show_crane(_crane, markCOM=True, markSubCOM=True, title: str | None = None):
                     x=b.c_m[0],
                     y=b.c_m[1],
                     z=b.c_m[2],
-                    s=str(int(b._mass.start[0])),
+                    s=str(b.mass),
                     color="black",
                 )
             )
@@ -581,7 +534,7 @@ def show_crane(_crane, markCOM=True, markSubCOM=True, title: str | None = None):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     logging.basicConfig(level=logging.INFO)
     c = _crane()

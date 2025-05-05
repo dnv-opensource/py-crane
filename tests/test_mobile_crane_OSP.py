@@ -49,12 +49,12 @@ def var_by_name(simulator: CosimExecution, name: str, comp: str | int) -> dict:
 @pytest.fixture(scope="session")
 def mobile_crane_system_structure(mobile_crane_fmu):
     ET.register_namespace("", "http://opensimulationplatform.com/MSMI/OSPSystemStructure")
-    tree = ET.parse(Path(__file__).parent / "resources" / "OspSystemStructure.xml")
+    tree = ET.parse(Path(__file__).parent.parent / "examples" / "OspSystemStructure.xml")
     root = tree.getroot()
 
     root[0][0].attrib["source"] = f"../{os.path.basename(mobile_crane_fmu.parent)}/MobileCrane.fmu"
 
-    build_path = Path(__file__).parent / "resources"
+    build_path = Path(__file__).parent.parent / "examples"
     build_path.mkdir(exist_ok=True)
     system_structure_path = build_path / "OspSystemStructure.xml"
     tree.write(system_structure_path)
@@ -161,6 +161,6 @@ def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
 if __name__ == "__main__":
     retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    structure = Path(__file__).parent / "resources" / "OspSystemStructure.xml"
-    fmu = Path(__file__).parent / "resources" / "MobileCrane.fmu"
+    structure = Path(__file__).parent.parent / "examples" / "OspSystemStructure.xml"
+    fmu = Path(__file__).parent.parent / "examples" / "MobileCrane.fmu"
     test_mobilecrane(structure, fmu)

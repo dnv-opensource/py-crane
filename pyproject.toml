@@ -6,9 +6,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
 only-include = [
-    "src/component_model",
+    "src/crane_fmu",
     "tests",
-    "tests/examples",
+    "examples",
     ".coveragerc",
     ".editorconfig",
     ".pre-commit-config.yaml",
@@ -43,8 +43,8 @@ packages = [
         "Operating System :: OS Independent",
     ]
     dependencies = [
-        "component-model>=0.0.1",
-        "pythonfmu>=0.6.6",
+        "component-model>=0.0.2",
+        "pythonfmu>=0.6.7",
         "numpy>=1.24.2",
 ]
     #dynamic = ["version"]
