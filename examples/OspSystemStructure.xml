@@ -1,0 +1,14 @@
+<OspSystemStructure xmlns="http://opensimulationplatform.com/MSMI/OSPSystemStructure" version="0.1">
+    <Simulators>
+        <Simulator name="mobileCrane" source="MobileCrane.fmu" stepSize="0.1">
+            <InitialValues>
+                <InitialValue variable="pedestal.mass">
+                    <Real value="10000.0" />
+                </InitialValue>
+                <InitialValue variable="boom.boom[0]">
+                    <Real value="8.0" />
+                </InitialValue>
+            </InitialValues>
+        </Simulator>
+    </Simulators>
+</OspSystemStructure>

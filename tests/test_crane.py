@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.mplot3d import Axes3D
 
 from crane_fmu.boom import Boom
 from crane_fmu.crane import Crane
@@ -81,33 +80,33 @@ def crane(scope="module", autouse=True):
 def _crane():
     crane = Crane()
     _ = crane.add_boom(
-        name = "pedestal",
-        description = "The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
-        mass = 2000.0,
-        mass_center = (0.5, -1, 0.8),
-        boom = (3.0, 0, 0),
+        name="pedestal",
+        description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
+        mass=2000.0,
+        mass_center=(0.5, -1, 0.8),
+        boom=(3.0, 0, 0),
     )
     _ = crane.add_boom(
-        name = "boom1",
-        description = "The first boom. Can be lifted",
-        mass = 200.0,
-        mass_center = 0.5,
-        boom = (10.0, radians(90), 0),
+        name="boom1",
+        description="The first boom. Can be lifted",
+        mass=200.0,
+        mass_center=0.5,
+        boom=(10.0, radians(90), 0),
     )
     _ = crane.add_boom(
-        name = "boom2",
-        description = "The second boom. Can be lifted whole range",
-        mass = 100.0,
-        mass_center =0.5,
-        boom =(5.0, radians(-180), 0),
+        name="boom2",
+        description="The second boom. Can be lifted whole range",
+        mass=100.0,
+        mass_center=0.5,
+        boom=(5.0, radians(-180), 0),
     )
     _ = crane.add_boom(
-        name ="rope",
-        description ="The rope fixed to the last boom. Flexible connection",
-        mass = 50.0,  # so far basically the hook
-        mass_rng = (50, 2000),
-        mass_center = 1.0,
-        boom = (0.5, radians(180), 0),
+        name="rope",
+        description="The rope fixed to the last boom. Flexible connection",
+        mass=50.0,  # so far basically the hook
+        mass_rng=(50, 2000),
+        mass_center=1.0,
+        boom=(0.5, radians(180), 0),
         damping=2.0,
     )
     return crane
@@ -196,7 +195,6 @@ def test_initial(crane):
     assert abs(_M - 2300) < 1e-9, f"Masses {_M} != {M}"
     np_arrays_equal(_c, (0, 0, (2000 * 1.5 + 200 * 8 + 100 * 15.5) / 2300))
     np_arrays_equal(pedestal.torque, (0, 0, 0))
-
 
 
 # @pytest.mark.skip()
@@ -431,12 +429,12 @@ def animate_sequence(crane, seq=(), nSteps=10):
     To do updates of statics and dynamics we need to know the last boom.
     """
     for b, a in seq:
-        if b.name == 'pedestal': # azimuthal movement
-            db = np.array( (0, 0, radians(a / nSteps)), float)
-        else: # polar movement
-            db = np.array( (0, radians(a / nSteps), 0), float)
+        if b.name == "pedestal":  # azimuthal movement
+            db = np.array((0, 0, radians(a / nSteps)), float)
+        else:  # polar movement
+            db = np.array((0, radians(a / nSteps), 0), float)
         for _ in range(nSteps):
-            b.boom_setter( b.boom + db), 
+            b.boom_setter(b.boom + db)
             # update all subsystem center of mass points. Need to do that from last boom!
             crane.calc_statics_dynamics(dt=None)
             yield (crane)

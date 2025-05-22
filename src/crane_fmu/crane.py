@@ -19,7 +19,7 @@ class Crane(object):
     The latter is defined in the related CraneFMU object (see crane_fmu).
     The crane should first be instantiated and then the booms added, using `.add_boom()` .
     The basic boom `fixation` is automatically added and accessible through `.boom0`
-    and can be used to access the other added booms through `booms(reverse=False)`.    
+    and can be used to access the other added booms through `booms(reverse=False)`.
     """
 
     def __init__(self):
@@ -32,7 +32,6 @@ class Crane(object):
             mass=1e-10,
             boom=(1e-10, 0, 0),
         )
-        self.dLoad = 0.0
 
     @property
     def boom0(self) -> Boom:
@@ -83,15 +82,14 @@ class Crane(object):
         except StopIteration:
             pass
 
-    def do_step(self, current_time: float, step_size: float):
+    def do_step(self, current_time: float, step_size: float) -> bool:
         """Do a simulation step of size `dt` at `time` ."""
         logger.debug(f"CRANE.do_step {current_time}:")
-        status = super().do_step(current_time, step_size)  # generic model step activities
         # after all changed input variables are taken into account, update the statics and dynamics of the system
         self.calc_statics_dynamics(step_size)
         # res = "".join( x.name+":"+str(x.end) for x in self.booms())
-        logger.debug(f"CRANE.done. {status}, torque:{self.boom0.torque}")
-        return status
+        logger.debug(f"Crane step {current_time} done. torque:{self.boom0.torque}")
+        return True
 
 
 class Animation:

@@ -33,7 +33,7 @@ class MobileCrane(CraneFMU):
         **kwargs,
     ):
         super().__init__(name=name, description=description, author=author, version=version, **kwargs)
-        pedestal = self.add_boom(
+        _pedestal = self.add_boom(
             name="pedestal",
             description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
             mass=pedestalMass,
@@ -41,7 +41,7 @@ class MobileCrane(CraneFMU):
             boom=(pedestalHeight, "0deg", "0deg"),
             boom_rng=(None, None, ("0deg", "360deg")),
         )
-        boom = self.add_boom(
+        _boom = self.add_boom(
             name="boom",
             description="The boom. Can be lifted and length can change within the given range",
             mass=boomMass,

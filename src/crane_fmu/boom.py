@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from math import isnan, nan, sqrt
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
 from component_model.variable import spherical_to_cartesian  # , Variable
@@ -10,6 +10,7 @@ from component_model.variable import spherical_to_cartesian  # , Variable
 # from crane_fmu.crane import Crane
 
 logger = logging.getLogger(__name__)
+
 
 def normalized(vec: np.ndarray):
     """Return the normalized vector. Helper function."""
@@ -104,15 +105,15 @@ class Boom(object):
         name: str,
         description: str = "",
         anchor0: Boom | None = None,
-        mass: float|str = 1.0,
-        #mass_rng: tuple | None = None,
+        mass: float | str = 1.0,
+        # mass_rng: tuple | None = None,
         mass_center: float | tuple = 0.5,
-        boom: tuple = (1.0, 0, 0),
-        #boom_rng: tuple = tuple(),
+        boom: Sequence = (1.0, 0, 0),
+        # boom_rng: tuple = tuple(),
         damping: float = 0.0,
         animationLW: int = 5,
-        **kwargs # for compatibility with derived classes
-    ):        
+        **kwargs,  # for compatibility with derived classes
+    ):
         self._model = model
         self.anchor0 = anchor0
         self.anchor1: Boom | None = None  # so far. If a boom is added, this is changed
@@ -130,22 +131,22 @@ class Boom(object):
         else:
             self.origin = self.anchor0.end
             self.anchor0.anchor1 = self
-        assert isinstance( mass, float), f"At this stage mass should be a float. Found {type(mass)}"
+        assert isinstance(mass, float), f"At this stage mass should be a float. Found {type(mass)}"
         self.mass = mass
         self.mass_center: list = list(mass_center) if isinstance(mass_center, tuple) else [mass_center, 0.0, 0.0]
-        self.boom = np.array( boom, float)
+        self.boom = np.array(boom, float)
         self.base_angles: np.ndarray = self.get_base_angles()
         self.direction = self.get_direction()
-        #self._c_m = np.array( (0,0,0), float) # just to make _c_m known. Updated by method c_m
-        self.c_m  # save the current value, running method self.c_m
+        # self._c_m = np.array( (0,0,0), float) # just to make _c_m known. Updated by method c_m
+        self._c_m = self.c_m  # save the current value, running method self.c_m
         self._c_m_sub: tuple[float, np.ndarray] = (self.mass, self._c_m)  # updated by calc_statics_dynamics
         if self.damping != 0.0:
             if self.damping < 0.5:
                 raise BoomInitError(f"Damping quality {self.damping} of {self.name} should be 0 or >0.5.") from None
             self._decayRate: float = self._calc_decayrate(self.length)
         # do a total re-calculation of _c_m_sub and torque (static) for this boom (trivial) and the reverse connected booms
-        self.torque = np.array( (0,0,0), float)
-        self.force = np.array((0,0,0), float)
+        self.torque = np.array((0, 0, 0), float)
+        self.force = np.array((0, 0, 0), float)
 
         self.calc_statics_dynamics(dt=None)
         logger.info(
@@ -162,7 +163,6 @@ class Boom(object):
             + ", "
             + str(self.damping)
         )
-
 
     def __getitem__(self, idx: int | str):
         """Facilitate subscripting booms. 'idx' denotes the connected boom with respect to self.
@@ -236,7 +236,6 @@ class Boom(object):
             logger.debug(f"Boom {self.name} changed to {self.boom}. Dir {self.direction}")
         return self.boom
 
-
     @property
     def model(self):
         return self._model
@@ -256,9 +255,10 @@ class Boom(object):
     @property
     def c_m(self):
         """Updates and returns the local center of mass point relative to self.origin."""
-        self._c_m = self.mass_center[0] * self.length * self.direction + np.array((self.mass_center[1], self.mass_center[2], 0))
+        self._c_m = self.mass_center[0] * self.length * self.direction + np.array(
+            (self.mass_center[1], self.mass_center[2], 0)
+        )
         return self._c_m
-    
 
     @property
     def c_m_sub(self):
@@ -381,7 +381,7 @@ class Boom(object):
         -------
             updated velocity and acceleration (of c_m)
 
-        .. assumption:: the center of mass is on the boom line at _mass_center[0] relative distance from origin
+        .. assumption:: the center of mass is on the boom line at mass_center[0] relative distance from origin
         .. math::
 
             \\ddot\vec r=-frac{\vec r \\cross (\vec r \\ cross \vec g)}{R^2} - frac{\\dot\vec r^2}{R^2} \vec r
@@ -442,4 +442,3 @@ class Boom(object):
             return 0
         else:
             return sqrt(9.81 / (newLength * self.mass_center[0])) / sqrt(4 * self.damping - 1)
-

@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Generator
+from typing import Any
 
 import matplotlib.pyplot as plt
 from component_model.model import Model
-from component_model.variable import Variable
-from component_model.variable_naming import VariableNamingConvention, ParsedVariable
+from component_model.variable_naming import VariableNamingConvention
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from crane_fmu.crane import Crane
 from crane_fmu.boom_fmu import BoomFMU
+from crane_fmu.crane import Crane
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class CraneFMU(Model, Crane):
     The crane should first be instantiated and then the booms added, using `.add_boom()` .
     The basic boom `fixation` is automatically added and accessible through `.boom0`
     and can be used to access the other added booms through `booms(reverse=False)` .
-    
+
     Note that this is still an abstract crane. It needs another extension to define concrete booms and interfaces.
        See MobileCrane on how this can be done.
 
@@ -47,29 +46,32 @@ class CraneFMU(Model, Crane):
         **kwargs: Any,
     ):
         """Initialize the crane object."""
-        Model.__init__(self,
-                       name=name,
-                       description=description,
-                       author=author,
-                       version=version,
-                       **kwargs)
-        self.variable_naming=VariableNamingConvention.structured
-        Crane.__init__(self) # that includes also the fixation pseudo-boom
+        Model.__init__(self, name=name, description=description, author=author, version=version, **kwargs)
+        self.variable_naming = VariableNamingConvention.structured
         self.u_length = u_length
         self.u_angle = u_angle
         self.u_time = u_time
-#            boom_rng=(None, (0, "180" + u_angle), ("-180" + u_angle, "180" + u_angle)),
-#         self.dLoad = 0.0
-#         # definition of crane level interface variables
-#         self._dLoad = Variable(  # input variable
-#             self,
-#             name="dLoad",
-#             description="Load added (or taken off) per time unit to/from the end of the last boom (the hook)",
-#             causality="input",
-#             variability="continuous",
-#             start="0.0 kg" + "/" + u_time,
-#             on_step=lambda t, dt: self.boom0[-1].mass + self.dLoad * dt, 
-#         )
+        self._boom0 = BoomFMU(
+            self,
+            "fixation",
+            "Fixation point of the crane to its parent object or fixed ground. Pseudo-boom object",
+            anchor0=None,
+            mass="1e-10 kg",
+            boom=(1e-10, 0, 0),
+        )
+
+    #            boom_rng=(None, (0, "180" + u_angle), ("-180" + u_angle, "180" + u_angle)),
+    #         self.dLoad = 0.0
+    #         # definition of crane level interface variables
+    #         self._dLoad = Variable(  # input variable
+    #             self,
+    #             name="dLoad",
+    #             description="Load added (or taken off) per time unit to/from the end of the last boom (the hook)",
+    #             causality="input",
+    #             variability="continuous",
+    #             start="0.0 kg" + "/" + u_time,
+    #             on_step=lambda t, dt: self.boom0[-1].mass + self.dLoad * dt,
+    #         )
 
     def add_boom(self, *args, **kvargs):
         """Add a boom to the crane. Overridden to ensure that a BoomFMU is added.
@@ -89,16 +91,19 @@ class CraneFMU(Model, Crane):
         """
         if not hasattr(self, boom.name):
             setattr(self, boom.name, boom)
-              
-        
+
+    def do_step(self, current_time: float, step_size: float) -> bool:
+        status = Model.do_step(self, current_time, step_size)
+        Crane.do_step(self, current_time, step_size)
+        return status
+
+
     # properties and functions available from Crane
     #  boom0 property and setter
     #  booms(self, reverse=False)               Boom iterator
     #  boom_by_name(self, name: str)            -> Boom | None:
     #  add_boom(self, *args, **kvargs)          Add a boom to the crane.
     #  calc_statics_dynamics(self, dt=None)     Run `calc_statics_dynamics()` on all booms in reverse order
-    #  do_step(self, current_time: float, step_size: float)
-
 
 
 class Animation:

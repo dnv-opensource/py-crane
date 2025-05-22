@@ -1,17 +1,15 @@
 import os
-import xml.etree.ElementTree as ET  # noqa: N817
 from math import radians
 from pathlib import Path
 
 import pytest
-from libcosimpy.CosimEnums import (
-    CosimExecutionState,
-    CosimVariableType,
-)
+from libcosimpy.CosimEnums import CosimErrorCode, CosimExecutionState, CosimVariableType
 from libcosimpy.CosimExecution import CosimExecution
 from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
+
+from crane_fmu.crane_fmu import CraneFMU
 
 
 def var_by_name(simulator: CosimExecution, name: str, comp: str | int) -> dict:
@@ -46,19 +44,25 @@ def var_by_name(simulator: CosimExecution, name: str, comp: str | int) -> dict:
     raise AssertionError(f"Variable {name} was not found within component {comp}") from None
 
 
+def _mobile_crane_fmu() -> Path:
+    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
+    build_path.mkdir(exist_ok=True)
+    fmu_path = CraneFMU.build(
+        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
+        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
+        dest=build_path,
+    )
+
+    return fmu_path
+
+
 @pytest.fixture(scope="session")
 def mobile_crane_system_structure(mobile_crane_fmu):
-    ET.register_namespace("", "http://opensimulationplatform.com/MSMI/OSPSystemStructure")
-    tree = ET.parse(Path(__file__).parent.parent / "examples" / "OspSystemStructure.xml")
-    root = tree.getroot()
+    return _mobile_crane_system_structure(_mobile_crane_fmu())
 
-    root[0][0].attrib["source"] = f"../{os.path.basename(mobile_crane_fmu.parent)}/MobileCrane.fmu"
 
-    build_path = Path(__file__).parent.parent / "examples"
-    build_path.mkdir(exist_ok=True)
-    system_structure_path = build_path / "OspSystemStructure.xml"
-    tree.write(system_structure_path)
-    return system_structure_path
+def _mobile_crane_system_structure(_mobile_crane__fmu):
+    return Path(__file__).parent.parent / "examples" / "OspSystemStructure.xml"
 
 
 # def test_visual_simulation_1():
@@ -104,13 +108,44 @@ def mobile_crane_system_structure(mobile_crane_fmu):
 #     )
 
 
-def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
+def test_from_osp(mobile_crane_fmu):
+    def get_status(sim):
+        status = sim.status()
+        return {
+            "currentTime": status.current_time,
+            "state": CosimExecutionState(status.state).name,
+            "error_code": CosimErrorCode(status.error_code).name,
+            "real_time_factor": status.real_time_factor,
+            "rolling_average_real_time_factor": status.rolling_average_real_time_factor,
+            "real_time_factor_target": status.real_time_factor_target,
+            "is_real_time_simulation": status.is_real_time_simulation,
+            "steps_to_monitor": status.steps_to_monitor,
+        }
+
+    sim = CosimExecution.from_step_size(step_size=1e7)  # empty execution object with fixed time step in nanos
+    crane = CosimLocalSlave(fmu_path=str(mobile_crane_fmu.absolute()), instance_name="crane")
+
+    icrane = sim.add_local_slave(crane)
+    assert icrane == 0, f"local slave number {icrane}"
+    info = sim.slave_infos()
+    assert info[0].name.decode() == "crane", "The name of the component instance"
+    assert info[0].index == 0, "The index of the component instance"
+    assert sim.slave_index_from_instance_name("crane") == 0
+    assert sim.num_slaves() == 1
+    assert sim.num_slave_variables(0) == 78
+    variables = {var_ref.name.decode(): var_ref.reference for var_ref in sim.slave_variables(icrane)}
+    assert variables["fixation.mass"] == 0
+
+
+def test_mobilecrane(mobile_crane_system_structure: Path, mobile_crane_fmu: Path):
     """Stand-alone test of MobileCrane.fmu using OSP"""
 
     def set_initial(name: str, value: float):
         var = var_by_name(simulator, name, _crane)
         simulator.real_initial_value(slave_index=_crane, variable_reference=var["reference"], value=value)
 
+    os.chdir(mobile_crane_system_structure.parent)
+    print("STRUCTURE", mobile_crane_system_structure, os.path.abspath(os.path.curdir))
     simulator = CosimExecution.from_osp_config_file(str(mobile_crane_system_structure))
     assert isinstance(simulator, CosimExecution)
     crane = CosimLocalSlave(fmu_path=str(mobile_crane_fmu), instance_name="mobileCrane")
@@ -128,8 +163,8 @@ def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
     vars = simulator.slave_variables(_crane)
     for var in vars:
         print(f"Slave variable (crane) ({var.reference}): {var.name}")
-    assert vars[0].name.decode() == "fixation_mass"
-    assert vars[8].name.decode() == "fixation_angularVelocity[1]", f"Found {vars[8].name.decode()}"
+    assert vars[0].name.decode() == "fixation.mass"
+    assert vars[8].name.decode() == "fixation.torque[1]", f"Found {vars[8].name.decode()}"
 
     f_t = CosimObserver.create_time_series()
     simulator.add_observer(observer=f_t)
@@ -140,13 +175,13 @@ def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
     manipulator = CosimManipulator.create_override()
     simulator.add_manipulator(manipulator=manipulator)
     # Variable references and settings (as in test_mobile_crane_fmi):
-    set_initial("pedestal_mass", 10000)
-    set_initial("pedestal_boom[0]", 3.0)
-    set_initial("boom_mass", 1000.0)
-    set_initial("boom_boom[0]", 8)
-    set_initial("boom_boom[1]", radians(50))
-    set_initial("fixation_angularVelocity[0]", 0.0)
-    set_initial("fixation_angularVelocity[1]", 0.1)
+    set_initial("pedestal.mass", 10000)
+    set_initial("pedestal.boom[0]", 3.0)
+    set_initial("boom.mass", 1000.0)
+    set_initial("boom.boom[0]", 8)
+    set_initial("boom.boom[1]", radians(50))
+    set_initial("der(fixation.boom[1])", 0.0)
+    set_initial("der(fixation.boom[2])", 0.1)
 
     res = simulator.simulate_until(target_time=1e9)  # automatic stepping with stopTime in nanos (alternative: .step())
     print(f"Ran OSP simulation. Success: {res}")
@@ -159,8 +194,8 @@ def test_mobilecrane(mobile_crane_system_structure, mobile_crane_fmu):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    structure = Path(__file__).parent.parent / "examples" / "OspSystemStructure.xml"
-    fmu = Path(__file__).parent.parent / "examples" / "MobileCrane.fmu"
-    test_mobilecrane(structure, fmu)
+    # test_from_osp( fmu)
+    # crane_fmu = _mobile_crane_fmu()
+    # test_mobilecrane(_mobile_crane_system_structure(crane_fmu), crane_fmu)
