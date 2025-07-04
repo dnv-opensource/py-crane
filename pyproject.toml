@@ -24,6 +24,9 @@ packages = [
     "src/crane_fmu",
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
     name = "crane-fmu"
     version = "0.2"
@@ -57,7 +60,8 @@ packages = [
     test = ["FMPy>=0.3.21",
             "matplotlib>=3.7.1",
             "plotly>=6.0.1",
-            "libcosimpy<0.0.3.post1",
+            "libcosimpy@git+https://github.com/open-simulation-platform/libcosimpy@cosimc-loading-fix",
+            #"libcosimpy >= 0.0.3.post1",
             ]
 
 [tool.uv]

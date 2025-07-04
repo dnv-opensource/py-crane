@@ -97,7 +97,6 @@ class CraneFMU(Model, Crane):
         Crane.do_step(self, current_time, step_size)
         return status
 
-
     # properties and functions available from Crane
     #  boom0 property and setter
     #  booms(self, reverse=False)               Boom iterator

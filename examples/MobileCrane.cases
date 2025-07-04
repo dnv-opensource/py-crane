@@ -1,0 +1,40 @@
+{name        : 'MobileCrane',
+description : 'Case Study with the Crane FMU and some other supporting FMUs',
+modelFile : "OSP_model/OspSystemStructure.xml",
+timeUnit  : "second",
+variables : {
+   h : ['bb', 'h', "Height of ball above ground"],
+   v : ['bb', 'v', "Speed of ball as 3-d vector"],
+   e  : ['bb', 'e', "Coefficient of restitution"],
+   },
+base : {
+   description : "Variable settings for the base case. All other cases are based on that",
+   spec: {
+      stopTime : '3',
+      h : '10.0',
+      v : 0.0,
+      e : '0.7',
+   }},
+case1 : {
+   description : "Change the start height of the bouncing ball",
+   spec: {
+      h : '5.0',
+   }},
+case2 : {
+   description : "Based on the change of start height (case1), change also the start velocity",
+   parent : 'case1',
+   spec : {
+      v : 9.0
+   }},
+case3 : {
+   description : "Another case related directly to the base case, changing the velocity alone",
+   spec : {
+      v : 9.0
+   }},
+results : {
+   spec : [
+      h@step,
+      v@1.0,
+      e,
+   ]}
+}
