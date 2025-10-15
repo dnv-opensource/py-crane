@@ -9,8 +9,6 @@ from libcosimpy.CosimManipulator import CosimManipulator
 from libcosimpy.CosimObserver import CosimObserver
 from libcosimpy.CosimSlave import CosimLocalSlave
 
-from crane_fmu.crane_fmu import CraneFMU
-
 
 def var_by_name(simulator: CosimExecution, name: str, comp: str | int) -> dict:
     """Get the variable info from variable provided as name.
@@ -44,16 +42,20 @@ def var_by_name(simulator: CosimExecution, name: str, comp: str | int) -> dict:
     raise AssertionError(f"Variable {name} was not found within component {comp}") from None
 
 
-def _mobile_crane_fmu() -> Path:
-    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
-    build_path.mkdir(exist_ok=True)
-    fmu_path = CraneFMU.build(
-        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
-        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
-        dest=build_path,
-    )
+@pytest.fixture(scope="session")
+def _mobile_crane_fmu():
+    return _get_fmu("MobileCrane.fmu")
 
-    return fmu_path
+
+@pytest.fixture(scope="session")
+def oscillator_fmu():
+    return _get_fmu("HarmonicOscillator6D.fmu")
+
+
+def _get_fmu(fmu_file: str) -> Path:
+    fmu = Path(__file__).parent.parent / "examples" / fmu_file
+    assert fmu.exists(), f"{fmu_file} file expected at {fmu}. Not found."
+    return fmu
 
 
 @pytest.fixture(scope="session")
@@ -62,7 +64,7 @@ def mobile_crane_system_structure(mobile_crane_fmu):
 
 
 def _mobile_crane_system_structure(_mobile_crane__fmu):
-    return Path(__file__).parent.parent / "examples" / "MobileCraneSystemStructure.xml"
+    return Path(__file__).parent.parent / "examples" / "OspSystemStructure.xml"
 
 
 # def test_visual_simulation_1():
@@ -85,7 +87,7 @@ def _mobile_crane_system_structure(_mobile_crane__fmu):
 #                 ("mobileCrane", "wire_end[2]"),
 #             ),
 #         ],
-#         osp_system_structure="MobileCraneSystemStructure.xml",
+#         osp_system_structure="OspSystemStructure.xml",
 #     )
 
 
@@ -104,7 +106,7 @@ def _mobile_crane_system_structure(_mobile_crane__fmu):
 #                 ("mobileCrane", "wire_end[2]"),
 #             ),
 #         ],
-#         osp_system_structure="MobileCraneSystemStructure.xml",
+#         osp_system_structure="OspSystemStructure.xml",
 #     )
 
 

@@ -1,36 +1,74 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Generator
+from typing import Any, Callable, Generator, Sequence
 
 import matplotlib.pyplot as plt
+import numpy as np
+from component_model.variable import euler_rot_spherical
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
+from scipy.spatial.transform import Rotation as Rot
 
 from crane_fmu.boom import Boom
+from crane_fmu.enum import Change
 
 logger = logging.getLogger(__name__)
 
 
 class Crane(object):
-    """A crane object built from stiff booms.
+    """A basic crane model object for mounting on fixed and movable structures.
 
-    This is the basic Python model object without any (FMI) interface definitions.
-    The latter is defined in the related CraneFMU object (see crane_fmu).
+    The crane consists of stiff booms (see boom.py), which are connected to each other through
+
+    * stiff connection (`damping=0`): The polar angle in direction of the previous boom can only be changed through new settings.
+    * loose connection (`damping>0`): The joint to the previous boom is loose
+       and the boom can move freely in all polar directions, i.e. it represents a wire,
+       exhibiting pendulum movement with respect to the local center of mass.
+
+    The basic boom `fixation` is automatically added and accessible through `.boom0`.
+    Initially the direction of the fixation is set to 'up' (z-axis).
+    The fixation direction can be changed through the `d_orientation` 3d angular velocity variable of the crane.
+    `orientation` represents the current 3d angle (roll, pitch, yaw, according to ISO 1151–2) vector
+    of the crane with respect to its initial orientation.
+
     The crane should first be instantiated and then the booms added, using `.add_boom()` .
-    The basic boom `fixation` is automatically added and accessible through `.boom0`
-    and can be used to access the other added booms through `booms(reverse=False)`.
+    Added booms can be accessed through the `.booms(reverse=False)` iterator.
+
+    The position of the fixation with respect to the structure where the crane is mounted does not concern the crane.
+    For moveable structures (e.g. vessels) it turns out that the crane needs to know
+
+    * the linear acceleration (change of velocity) of the structure, i.e `d_velocity`,
+       since the acceleration leads to a force and the pendulum movement of loosely connected booms is affected.
+       Consequently, the crane needs to keep track of the velocity of its mounting structure,
+       even if it is fixed to it.
+    * the angular direction of the fixation with respect to the initial direction, i.e. `orientation` (see above).
+    * the booms use polar coordinates for their direction, defined with respect to the direction of the previous boom.
+      This implies that the third direction variable is missing for booms, with the consequence that internal boom torsion
+      cannot be addressed.
+      For fixed booms that is a good approximation,
+      but for the load (i.e. the center of mass of the loose connection) it represents the limitation that the load cannot turn.
     """
 
-    def __init__(self):
+    to_crane_angle: Callable
+
+    def __init__(self, to_crane_angle: Callable | None = None):
         """Initialize the crane object."""
+        Crane.to_crane_angle: Callable = Crane.to_crane_angle_default  # args: (angle, degrees:bool = False)
+        if to_crane_angle is not None:  # non-default transformation function
+            Crane.to_crane_angle = to_crane_angle
+        self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # placeholder for current rotations (yaw,pitch,roll) of crane
+        self._d_rot: Rot | None = None  # placeholder for current angular movement
+        self._position = np.array((0.0, 0.0, 0.0), float)
+        self.velocity = np.array((0.0, 0.0, 0.0), float)
+        self.d_velocity = np.array((0.0, 0.0, 0.0), float)
         self._boom0 = Boom(
             self,
             "fixation",
             "Fixation point of the crane to its parent object or fixed ground. Pseudo-boom object",
             anchor0=None,
             mass=1e-10,
-            boom=(1e-10, 0, 0),
+            boom=(1e-10, 0.0, 0.0),
         )
 
     @property
@@ -38,7 +76,7 @@ class Crane(object):
         return self._boom0
 
     @boom0.setter
-    def boom0(self, newVal):
+    def boom0(self, newVal: Boom):
         assert isinstance(newVal, Boom), f"A boom object expected as first boom on crane. Got {type(newVal)}"
         self._boom0 = newVal
 
@@ -73,6 +111,72 @@ class Crane(object):
             kvargs.update({"anchor0": last})
         return Boom(self, *args, **kvargs)
 
+    @property
+    def position(self) -> np.ndarray:
+        return self._position
+
+    @position.setter
+    def position(self, newval: np.ndarray):
+        self._position = newval
+        self.boom0.origin = newval
+        self.boom0.update_child(change=Change.POS)
+
+    @property
+    def rot(self) -> Rot:
+        return self._rot
+
+    @rot.setter
+    def rot(self, rpy: Sequence | np.ndarray):
+        """Set a new absolute rotation through an Euler angle."""
+        self._rot = self.rotate(rpy, degrees=False, absolute=True)
+
+    def d_rot(self, rpy: Sequence | np.ndarray | None = None) -> Rot | None:
+        """Set a new relative rotation through an Euler angle.
+        Note: Only the rotation object is defined. The crane is not rotated.
+        """
+        if rpy is not None:  # set a new value and return the result
+            angle = Crane.to_crane_angle(np.array(rpy), degrees=False)
+            if np.isclose(angle, (0, 0, 0)):  # stop rotation
+                self._d_rot = None
+            else:
+                self._d_rot = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
+        return self._d_rot
+
+    @classmethod
+    def to_crane_angle_default(cls, rpy: np.ndarray, degrees: bool = False):
+        """Transform the given extrinsic euler angles into the the coordinate system used by the crane.
+        Note: In maritime applications, the North-East-Down is often used,
+           while crane uses naturally a North-West-Up system. Both are right handed.
+        """
+        _angle = np.radians(rpy) if degrees else rpy
+        _angle[1] = -_angle[1]
+        _angle[2] = -_angle[2]
+        return _angle
+
+    def rotate(self, rpy: Sequence | np.ndarray | Rot, degrees: bool = False, absolute: bool = False):
+        """Set the orientation to a new value according to ISO 1151–2 (roll,pitch,yaw) - rotations.
+
+        Args:
+            rpy (Sequence): Sequence of roll, pitch and yaw angles or a rotation object
+            degrees (bool)=False: Optional possibility to supply the angles in degrees. Default is radians.
+            absolute (bool)=False: euler rotation as absolute angle or relative to current self._rot
+
+        The current orientation is maintained as scipy rotation object
+        based on euler angles (roll,pitch,yaw)
+        with x in vessel direction, y to starboard, z down
+        """
+        if isinstance(rpy, Rot):  # rotation object provided
+            self._rot = rpy if absolute else self._rot * rpy
+            angle = self._rot.as_euler("XYZ")
+        else:  # euler angle provided
+            angle = Crane.to_crane_angle(np.array(rpy), degrees)
+            rot_angle = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
+            self._rot = rot_angle if absolute else rot_angle * self._rot  # absolute or relative angle
+            # print(f"Angle {np.degrees(angle)}. => matrix \n{self._rot.as_matrix()}")
+            # print(f"x,y,z->{self._rot.apply((1,0,0))}, {self._rot.apply((0,1,0))}, {self._rot.apply((0,0,1))}")
+        self.boom0.boom_setter(euler_rot_spherical(angle, (None, 0.0, 0.0)))  # fixation spherical angle
+        return self._rot
+
     def calc_statics_dynamics(self, dt=None):
         """Run `calc_statics_dynamics()` on all booms in reverse order,
         to get all Boom._c_m_sub and dynamics updated.
@@ -85,6 +189,14 @@ class Crane(object):
     def do_step(self, current_time: float, step_size: float) -> bool:
         """Do a simulation step of size `dt` at `time` ."""
         logger.debug(f"CRANE.do_step {current_time}:")
+        if any(acc != 0 for acc in self.d_velocity):  # linear acceleration ongoing
+            self.velocity += self.d_velocity * step_size
+        if any(v != 0 for v in self.velocity):  # position change ongoing
+            self.position += self.velocity * step_size  # Note: changes also origin of fixture and all children
+        # orientation changes...
+        if self._d_rot is not None:
+            self.rotate(self._d_rot * step_size, absolute=False)  # Note: changes also rot, ... and all children
+
         # after all changed input variables are taken into account, update the statics and dynamics of the system
         self.calc_statics_dynamics(step_size)
         # res = "".join( x.name+":"+str(x.end) for x in self.booms())

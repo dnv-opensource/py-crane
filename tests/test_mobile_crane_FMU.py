@@ -102,7 +102,7 @@ def test_run_mobilecrane_static(mobile_crane_fmu, show: bool):
             "boom.mass": 1000.0,
             "boom.boom[0]": 8,
             "boom.boom[1]": 45.0,  # input as deg, internal: rad
-            "rope.boom[0]": 1e-6,
+            "wire.boom[0]": 1e-6,
         },
     )
     # result is a list of tuples. Each tuple contains (time, output-variables)
@@ -139,7 +139,7 @@ def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
             "boom.boom[0]": 8,
             "boom.boom[1]": 45.0,  # input as deg, internal: rad
             "der(pedestal.boom[2])": 1.0,  # azimuthal movement 1 deg per time step
-            "rope.boom[0]": 1e-6,
+            "wire.boom[0]": 1e-6,
             "der(fixation.boom[1])": 0.0,
             "der(fixation.boom[2])": 0.0,
         },
@@ -175,7 +175,7 @@ def test_run_mobilecrane_accelerate(mobile_crane_fmu, show: bool):
             "boom.boom[0]": 8,
             "boom.boom[1]": 45.0,  # input as deg, internal: rad
             "der(pedestal.boom[2],2)": 0.01,  # azimuthal acceleration 1 deg/ (time unit**2)
-            "rope.boom[0]": 1e-6,
+            "wire.boom[0]": 1e-6,
         },
     )
     if show:

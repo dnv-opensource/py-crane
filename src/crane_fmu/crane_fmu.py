@@ -4,7 +4,9 @@ import logging
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 from component_model.model import Model
+from component_model.variable import Variable
 from component_model.variable_naming import VariableNamingConvention
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
@@ -58,6 +60,16 @@ class CraneFMU(Model, Crane):
             anchor0=None,
             mass="1e-10 kg",
             boom=(1e-10, 0, 0),
+        )
+        self.crane_lin_speed = np.array((0.0,) * 3, float)
+        self._crane_lin_speed = Variable(
+            self,
+            "der(fixation.end)",
+            "Crane fixation linear speed in 3D",
+            causality="input",
+            variability="continuous",
+            start=("0.0",) * 3,
+            local_name="crane_lin_speed",
         )
 
     #            boom_rng=(None, (0, "180" + u_angle), ("-180" + u_angle, "180" + u_angle)),

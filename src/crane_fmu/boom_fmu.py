@@ -24,7 +24,7 @@ class BoomFMU(Boom):
 
     * Rotation: active rotation around the hinge, obeying the defined degrees of freedom, or passive initiated by parent booms (around their hinge)
     * Translation: the boom is moved linearly, due to linear movement of the hinge
-    * length change: length change of booms (e.g. rope) can be one defined degree of freedom. It is similar to translation, but the hinge does not move, only the end.
+    * length change: length change of booms (e.g. wire) can be one defined degree of freedom. It is similar to translation, but the hinge does not move, only the end.
     * mass change: mass change of booms (e.g. add or remove load) can be one defined degree of freedom.
 
     After any movement
@@ -46,7 +46,7 @@ class BoomFMU(Boom):
             and which is automatically provided by the crane, i.e. for real booms this is never None.
         mass (float): Parameter denoting the (assumed fixed) mass of the boom
         mass_rng (tuple): Optional range of the mass, if the mass can be changed.
-            Normally only the last boom (the rope) has a variable mass (the load).
+            Normally only the last boom (the wire) has a variable mass (the load).
         mass_center (float,tuple): Parameter denoting the (assumed fixed) position of the center of mass of the boom,
             provided as portion of the length (as float).
             Optionally the absolute displacements in x- and y-direction (assuming the boom in z-direction) can be added
@@ -73,13 +73,13 @@ class BoomFMU(Boom):
         damping (float)=0.0: optional possibility to implement a loose connection between booms.
 
             * if damping=0.0, the connection to the parent boom is stiff according to the boom angle setting
-            * if 0<damping<=0.5, the crane boom (the rope) is implemented as a stiff
+            * if 0<damping<=0.5, the crane boom (the wire) is implemented as a stiff
                 with a loose connection hanging from the parent boom.
 
             The damping denotes the dimensionless damping quality factor (energy stored/energy lost per radian),
             which is also equal to `2*ln( amplitude/amplitude next period)`, or `pi*frequency*decayTime`
         animationLW (int)=5: Optional possibility to change the default line width when performing animations.
-            E.g. the pedestal might be drawn with larger and the rope with smaller line width
+            E.g. the pedestal might be drawn with larger and the wire with smaller line width
 
     With a crane object `crane` , instantiate like:
 
@@ -98,7 +98,7 @@ class BoomFMU(Boom):
 
 
     .. todo:: determine the range of forces
-    .. limitation:: The mass and the mass_center setting of booms is assumed constant. With respect to rope and hook of a crane this means that basically only the mass of the hook is modelled.
+    .. limitation:: The mass and the mass_center setting of booms is assumed constant. With respect to wire and hook of a crane this means that basically only the mass of the hook is modelled.
     .. assumption:: Center of mass: `_c_m` is the local mass-center measured relative to origin. `_c_m_sub` is a global quantity
     """
 
@@ -235,7 +235,7 @@ class BoomFMU(Boom):
 #         self.boom_setter((self.boom[0] + dL, None, None))
 #
 #     def change_mass(self, dM: float, center: float | None = None):
-#         """Change the mass of the boom, e.g. when adding or releasing a load at the rope.
+#         """Change the mass of the boom, e.g. when adding or releasing a load at the wire.
 #
 #         Args:
 #             dM (float): The added or subtracted mass
