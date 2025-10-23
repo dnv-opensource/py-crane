@@ -5,8 +5,6 @@ from shutil import rmtree
 
 import pytest
 
-from crane_fmu.crane_fmu import CraneFMU
-
 
 @pytest.fixture(scope="package", autouse=True)
 def chdir() -> None:
@@ -43,19 +41,6 @@ def default_setup_and_teardown():
     _remove_output_dirs_and_files()
     yield
     _remove_output_dirs_and_files()
-
-
-@pytest.fixture(scope="session")
-def mobile_crane_fmu():
-    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
-    build_path.mkdir(exist_ok=True)
-    fmu_path = CraneFMU.build(
-        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
-        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
-        dest=build_path,
-    )
-
-    return fmu_path
 
 
 def _remove_output_dirs_and_files() -> None:

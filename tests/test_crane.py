@@ -20,13 +20,13 @@ logging.basicConfig(level=logging.INFO)
 np.set_printoptions(precision=4, suppress=True)
 
 
-def set_wire_direction(r: Boom, angles: Sequence, degrees: bool = False):
+def set_wire_direction(r: Boom, angles: Sequence):
     """Set the angles of a wire object. Makes only sense for preparation of test cases. Not allowed in Boom class."""
-    _angles = np.radians(np.array(angles)) if degrees else np.array(angles)
+    _angles = np.radians(np.array(angles)) if r.model.degrees else np.array(angles)
     r.boom[1:] = _angles
     assert r.anchor0 is not None
-    r.rot = r.anchor0.rot * rot_from_spherical(_angles)
-    r.direction = r.rot.apply(np.array((0, 0, 1), float))
+    r.rot(r.anchor0.rot() * rot_from_spherical(_angles))
+    r.direction = r.rot().apply(np.array((0, 0, 1), float))
     r.velocity = np.array((0, 0, 0), float)  # reset also the speed
 
 
@@ -115,7 +115,7 @@ def crane(scope="module", autouse=True):
 
 
 def _crane():
-    crane = Crane()
+    crane = Crane(degrees=True)
     _ = crane.add_boom(
         name="pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
@@ -146,7 +146,7 @@ def test_initial(crane):
     """Test the initial state of the crane."""
     # test general crane issues
     assert isinstance(crane.to_crane_angle, Callable)  # type: ignore [arg-type] # do not know about any other way
-    assert np.allclose(crane.to_crane_angle(np.array((90, 90, 90)), degrees=True), np.pi / 2 * np.array((1, -1, -1)))
+    assert np.allclose(crane.to_crane_angle(np.array((90, 90, 90))), np.pi / 2 * np.array((1, -1, -1)))
     # test indexing of booms
     booms = [b.name for b in crane.booms()]
     assert booms == ["fixation", "pedestal", "boom1", "wire"]
@@ -259,11 +259,11 @@ def test_pendulum(crane, show):
             if crane_position is not None:
                 crane.position = np.array((crane_position(crane.current_time), 0, 0), float)
             if crane_roll is not None:
-                crane.rotate((crane_roll(crane.current_time), 0, 0), degrees=True)
+                crane.rotate((crane_roll(crane.current_time), 0, 0))
             if crane_pitch is not None:
-                crane.rotate((0, crane_pitch(crane.current_time), 0), degrees=True)
+                crane.rotate((0, crane_pitch(crane.current_time), 0))
             if crane_yaw is not None:
-                crane.rotate((0, 0, crane_yaw(crane.current_time)), degrees=True)
+                crane.rotate((0, 0, crane_yaw(crane.current_time)))
             crane.calc_statics_dynamics(dt)
             assert length == r.boom[0], f"Pendulum length {r.boom[0]} != {length}"
             # print(np.degrees(r.boom[1]), 5.0*np.cos( np.sqrt(9.81)*crane.current_time))
@@ -295,14 +295,14 @@ def test_pendulum(crane, show):
     assert np.allclose(r.origin, (0, 0, 1.0))
     assert np.allclose(r.end, (0, 0, 0))
 
-    set_wire_direction(r, (1.0, 0), degrees=True)
+    set_wire_direction(r, (1.0, 0))
     r._damping_time = 1e300  # no damping
     if False:  # show:
         show_crane(crane, True, False, title="start")
 
     # Start the crane at maximum potential energy of load (1 deg) without damping
     # we should have theta(t) = theta0* cos(w*t) with theta0= 0.0175 (1deg) and w= sqrt(g/L) = 3.132 => T = 2.006
-    set_wire_direction(r, (1.0, 0), degrees=True)
+    set_wire_direction(r, (1.0, 0))
     time, z_pos, speed, z_max = sim_run(
         t_end=10,
         dt=0.01,
@@ -322,7 +322,7 @@ def test_pendulum(crane, show):
         last = t
 
     # same test with q_factor
-    set_wire_direction(r, (1.0, 0), degrees=True)
+    set_wire_direction(r, (1.0, 0))
     r.q_factor = 100
     r._damping_time = 0.5 * sqrt(r.length * r.mass_center[0] / 9.81 * (r.q_factor**2 + 0.25))
     time, z_pos, speed, z_max = sim_run(
@@ -341,7 +341,7 @@ def test_pendulum(crane, show):
 
     # Move the whole crane according to a sin function in x-direction, causing forced pendulum actions
     # Perform a frequency sweep, clearly exhibiting the resonant behaviour of the crane.
-    set_wire_direction(r, (0, 0), degrees=True)
+    set_wire_direction(r, (0, 0))
     r._damping_time = 1000  # damping
     time, z_pos, speed, z_max = sim_run(
         t_end=100,
@@ -358,7 +358,7 @@ def test_pendulum(crane, show):
     assert zmax > 0.15, "Amplitude at about resonance."
 
     # Forced roll movement at about resonance with damping
-    set_wire_direction(r, (0, 0), degrees=True)
+    set_wire_direction(r, (0, 0))
     r._damping_time = 100  # damping
     time, z_pos, speed, z_max = sim_run(
         t_end=10,
@@ -375,7 +375,7 @@ def test_pendulum(crane, show):
     assert _max[1] > 0.0006
 
     # Forced yaw movement, which does not have effect on load (inertia not modelled)
-    set_wire_direction(r, (0, 0), degrees=True)
+    set_wire_direction(r, (0, 0))
     r._damping_time = 100  # damping
     time, z_pos, speed, z_max = sim_run(
         t_end=10,
@@ -392,7 +392,7 @@ def test_pendulum(crane, show):
 
     # roll the whole crane according to a sin function in x-direction, causing forced pendulum actions
     # Perform a frequency sweep, clearly exhibiting the resonant behaviour of the crane.
-    set_wire_direction(r, (0, 0), degrees=True)
+    set_wire_direction(r, (0, 0))
     r._damping_time = 100  # damping
     time, z_pos, speed, z_max = sim_run(
         t_end=100,
@@ -409,7 +409,7 @@ def test_pendulum(crane, show):
     # assert abs( 0.1+tmax/20 - 2*np.pi/np.sqrt(9.81)) < 0.2, "Close to resonance frequency"
 
     # both roll, pitch and yaw the crane, switching on pitch at 4th period and yaw at 8th period
-    set_wire_direction(r, (0, 0), degrees=True)
+    set_wire_direction(r, (0, 0))
     r._damping_time = 100  # damping
     time, z_pos, speed, z_max = sim_run(
         t_end=20,
@@ -671,34 +671,34 @@ def test_orientation(crane: Crane, show: int | bool = False):
 
     f, p, b1, r = [b for b in crane.booms()]
     r.boom_setter((1.0, None, None))  # wire 1m
-    crane.rotate((0, 0, 0), degrees=True, absolute=False)  # zero turn
+    crane.rotate((0, 0, 0), absolute=False)  # zero turn
     crane_check((0, 0, 3), (10, 0, 3), (10, 0, 2), show_it=1, title="test_orientation(initial).")
     angle = 90
     # only roll
-    crane.rotate((angle, 0, 0), degrees=True, absolute=True)  # roll 90 deg
+    crane.rotate((angle, 0, 0), absolute=True)  # roll 90 deg
     crane_check((0, -3, 0), (10, -3, 0), (10, 0, 2), show_it=2, title=f"test_orientation(roll({angle})).")
     # roll back
-    crane.rotate((-angle, 0, 0), degrees=True, absolute=False)
+    crane.rotate((-angle, 0, 0), absolute=False)
     r.pendulum_relax()
     crane_check((0, 0, 3), (10, 0, 3), (10, 0, 2), show_it=1, title="Crane rotated back")
     # only pitch
-    crane.rotate((0, angle, 0), degrees=True, absolute=True)
+    crane.rotate((0, angle, 0), absolute=True)
     crane_check((-3, 0, 0), (-3, 0, 10), (10, 0, 2), show_it=4, title=f"test_orientation(pitch({angle})).")
     # pitch back
-    crane.rotate((0, -angle, 0), degrees=True, absolute=False)
+    crane.rotate((0, -angle, 0), absolute=False)
     r.pendulum_relax()
     crane_check((0, 0, 3), (10, 0, 3), (10, 0, 2), show_it=1, title="Crane rotated back")
     # only yaw
-    crane.rotate((0, 0, angle), degrees=True, absolute=True)
+    crane.rotate((0, 0, angle), absolute=True)
     crane_check((0, 0, 3), (0, -10, 3), (10, 0, 2), show_it=8, title=f"test_orientation(yaw({angle})).")
     # yaw back
-    crane.rotate((0, 0, -angle), degrees=True, absolute=False)
+    crane.rotate((0, 0, -angle), absolute=False)
     r.pendulum_relax()
     crane_check((0, 0, 3), (10, 0, 3), (10, 0, 2), show_it=1, title="Crane rotated back")
     # roll, pitch, yaw successively
-    crane.rotate((angle, 0, 0), degrees=True, absolute=True)
-    crane.rotate((0, angle, 0), degrees=True, absolute=False)
-    crane.rotate((0, 0, angle), degrees=True, absolute=False)
+    crane.rotate((angle, 0, 0), absolute=True)
+    crane.rotate((0, angle, 0), absolute=False)
+    crane.rotate((0, 0, angle), absolute=False)
     if show & 16 >= 16:
         show_crane(crane, True, False, title="roll, pitch, yaw successively")
 

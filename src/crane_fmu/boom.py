@@ -108,10 +108,8 @@ class Boom(object):
         description: str = "",
         anchor0: Boom | None = None,
         mass: float | str = 1.0,
-        # mass_rng: tuple | None = None,
         mass_center: float | tuple = 0.5,
         boom: Sequence = (1.0, 0, 0),
-        # boom_rng: tuple = tuple(),
         q_factor: float = 0.0,
         animationLW: int = 5,
         tolerance: float = 1e-5,
@@ -140,8 +138,8 @@ class Boom(object):
         self.mass_center: list = list(mass_center) if isinstance(mass_center, tuple) else [mass_center, 0.0, 0.0]
         self.boom = np.array(boom, float)
         # rot denotes the rotation which turns (0,0,1) into the direction
-        self.rot: Rot = Rot.identity() if self.anchor0 is None else self.anchor0.rot * rot_from_spherical(boom[1:])
-        self.direction = self.rot.apply((0.0, 0.0, 1.0))
+        self._rot: Rot = Rot.identity() if self.anchor0 is None else self.anchor0._rot * rot_from_spherical(boom[1:])
+        self.direction = self._rot.apply((0.0, 0.0, 1.0))
         # self._c_m = np.array( (0,0,0), float) # just to make _c_m known. Updated by method c_m
         self._c_m = self.c_m  # save the current value, running method self.c_m
         self._c_m_sub: tuple[float, np.ndarray] = (self.mass, self._c_m)  # updated by calc_statics_dynamics
@@ -206,12 +204,20 @@ class Boom(object):
     #     def boom(self):
     #         return getattr(self._model, self._name + ".boom")  # access to value (owned by model)
 
+    def rot(self, newval: Rot | None = None) -> Rot:
+        """Access the rotation object from outside the boom.
+        Since this is a function for the model, we make it a function also here.
+        """
+        if newval is not None:
+            self._rot = newval
+        return self._rot
+
     def boom_setter(self, val: Sequence[float | None]):
         """Set length and angles of boom (if allowed) and ensure consistency with other booms.
         This is called from the general setter function after the units and range are checked
         and before the variable value itself is changed within the model.
 
-        Note: boom_setter initiates an internal change in the crane, which then affects .rot, .direction, .length
+        Note: boom_setter initiates an internal change in the crane, which then affects ._rot, .direction, .length
            External changes (parent booms) do not affect .boom.
 
         Args:
@@ -230,8 +236,10 @@ class Boom(object):
                     self.boom[i] = v
         if Change.ROT in Change(ch):  # direction change
             assert self.q_factor == 0, "Attempt to directly set the angle of a wire. Does not make sense"
-            self.rot = self.model.rot if self.anchor0 is None else self.anchor0.rot * rot_from_spherical(self.boom[1:])
-            self.direction = self.rot.apply(np.array((0, 0, 1), float))
+            self._rot = (
+                self.model.rot() if self.anchor0 is None else self.anchor0.rot() * rot_from_spherical(self.boom[1:])
+            )
+            self.direction = self._rot.apply(np.array((0, 0, 1), float))
         if self.anchor1 is not None:
             self.anchor1.update_child(change=Change(ch))
         return self.boom
@@ -293,15 +301,15 @@ class Boom(object):
                 else:  # elif clen0 < clen1: # cm dragged in clen1 direction
                     end1 = origin1 + length0 * normalized(to_cm0)
                 self.direction = normalized(end1 - origin1)
-                rel_direction = self.anchor0.rot.apply(self.direction, inverse=True)  # dir. relative to previous boom
+                rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom
                 self.boom[1:] = cartesian_to_spherical(rel_direction)[1:]
         if self.anchor0 is not None:  # does not apply to fixation
             self.origin = self.anchor0.end
             # if self.name=='wire': print(f"Wire@{change}: {self.origin}->{self.end}, angle {self.boom[1]}, {self.model.euler}")
             if Change.ROT in change:
-                self.rot = self.anchor0.rot * rot_from_spherical(self.boom)
+                self._rot = self.anchor0.rot() * rot_from_spherical(self.boom)
         if self.q_factor == 0 or approx:
-            self.direction = self.rot.apply(np.array((0, 0, 1), float))
+            self.direction = self._rot.apply(np.array((0, 0, 1), float))
         logger.debug(f"New direction {self.name}, dir:{self.direction}, origin:{self.origin}, end:{self.end}")
         if self.anchor1 is not None:
             self.anchor1.update_child(change)
@@ -425,7 +433,7 @@ class Boom(object):
                 velocity *= sqrt(1 - dt / self._damping_time)
             acceleration = ivp_fun(0.0, np.append(position, velocity), r2)[3:]
             self.direction = normalized(position)
-            rel_direction = self.anchor0.rot.apply(self.direction, inverse=True)  # dir. relative to previous boom
+            rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom
             self.boom[1:] = cartesian_to_spherical(rel_direction)[1:]
             self._c_m = position
             # we return these two for further usage and registration within calc_statics_dynamics:
@@ -445,10 +453,10 @@ class Boom(object):
             assert self.anchor0 is not None, "anchor0 needed at this point"
             self.direction = np.array((0, 0, -1), float)
             self.velocity = np.array((0, 0, 0), float)
-            rel_direction = self.anchor0.rot.apply(self.direction, inverse=True)  # dir. relative to previous boom
+            rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom
             self.boom[1:] = cartesian_to_spherical(rel_direction)[1:]
-            crane_dir = normalized(self.model.rot.apply((0, 0, 1)))
-            self.rot = rot_from_vectors(crane_dir, self.direction)
+            crane_dir = normalized(self.model.rot().apply((0, 0, 1)))
+            self._rot = rot_from_vectors(crane_dir, self.direction)
 
     def _calc_decayrate(self, newLength) -> float:
         if self.q_factor == 0.0:

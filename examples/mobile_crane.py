@@ -3,7 +3,7 @@ from crane_fmu.crane_fmu import CraneFMU  # , Animation
 
 class MobileCrane(CraneFMU):
     """Simple mobile crane for FMU testing purposes.
-    The crane has a short pedestal, one variable-length stiff boom and a rope.
+    The crane has a short pedestal, one variable-length stiff boom and a wire.
     The size and weight of the various parts can be configured.
 
     Args:
@@ -21,18 +21,19 @@ class MobileCrane(CraneFMU):
     def __init__(
         self,
         name: str = "mobile_crane",
-        description: str = "Simple mobile crane (for FMU testing) with short pedestal, one variable-length elevation boom and a rope",
+        description: str = "Simple mobile crane (for FMU testing) with short pedestal, one variable-length elevation boom and a wire",
         author: str = "DNV, SEACo project",
-        version: str = "0.2",
+        version: str = "0.3",
+        degrees: bool = True,
         pedestalMass: str = "10000.0 kg",
         pedestalHeight: str = "3.0 m",
         boomMass: str = "1000.0 kg",
         boomLength0: str = "8 m",
         boomLength1: str = "50 m",
-        rope_mass_range: tuple = ("50kg", "2000 kg"),
+        wire_mass_range: tuple = ("50kg", "2000 kg"),
         **kwargs,
     ):
-        super().__init__(name=name, description=description, author=author, version=version, **kwargs)
+        super().__init__(name=name, description=description, author=author, version=version, degrees=degrees, **kwargs)
         _pedestal = self.add_boom(
             name="pedestal",
             description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
@@ -50,11 +51,11 @@ class MobileCrane(CraneFMU):
             boom_rng=((boomLength0, boomLength1), (0, "90deg"), None),
         )
         _ = self.add_boom(
-            name="rope",
-            description="The rope fixed to the last boom. Flexible connection",
+            name="wire",
+            description="The wire fixed to the last boom. Flexible connection",
             mass="50.0 kg",  # so far basically the hook
             mass_center=0.95,
-            mass_rng=rope_mass_range,
+            mass_rng=wire_mass_range,
             boom=("1e-6 m", "180deg", "0 deg"),
             boom_rng=(
                 ("1e-6 m", boomLength1),
@@ -69,6 +70,6 @@ class MobileCrane(CraneFMU):
 
     def do_step(self, current_time: float, step_size: float):
         status = super().do_step(current_time, step_size)
-        # print(f"Time {current_time}, {self.booms("rope").end}")
+        # print(f"Time {current_time}, {self.booms("wire").end}")
         # print(f"MobileCrane.do_step. Status {status}")
         return status

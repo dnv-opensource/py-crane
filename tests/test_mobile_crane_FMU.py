@@ -1,18 +1,18 @@
 import logging
 from math import cos, radians, sin, sqrt
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
+import pytest
 from component_model.utils.xml import read_xml
 from fmpy import dump, plot_result, simulate_fmu
 from fmpy.validation import validate_fmu
-from matplotlib.pyplot import set_loglevel
 
 np.set_printoptions(formatter={"float_kind": "{:.4f}".format})
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)  # DEBUG)
-set_loglevel(level="warning")
 
 
 def arrays_equal(arr1, arr2, eps=1e-7):
@@ -55,20 +55,21 @@ def test_mass_center():
     )
 
 
-def make_mobile_crane_fmu(only_path: bool = True):
+@pytest.fixture(scope="session")
+def mobile_crane_fmu():
+    return _mobile_crane_fmu()
+
+
+def _mobile_crane_fmu():
     from component_model.model import Model
 
-    if not only_path:
-        build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
-        build_path.mkdir(exist_ok=True)
-        fmu_path = Model.build(  # MobileCrane.build(
-            str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
-            project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
-            dest=build_path,
-        )
-    else:
-        fmu_path = Path(__file__).parent.parent / "examples" / "MobileCrane.fmu"
-        assert fmu_path.exists(), "FMU not found"
+    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
+    build_path.mkdir(exist_ok=True)
+    fmu_path = Model.build(  # MobileCrane.build(
+        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
+        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
+        dest=build_path,
+    )
     return fmu_path
 
 
@@ -123,71 +124,63 @@ def test_run_mobilecrane_static(mobile_crane_fmu, show: bool):
 
 
 def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
-    result = simulate_fmu(
-        str(mobile_crane_fmu),
-        stop_time=10.0,
-        step_size=1,
-        output_interval=1.0,
-        solver="Euler",
-        debug_logging=True,
-        logger=print,  # fmi_call_logger=print,
-        start_values={
-            "pedestal.mass": 10000.0,
-            "pedestal.boom[0]": 3.0,
-            "pedestal.boom[2]": 0.0,
-            "boom.mass": 1000.0,
-            "boom.boom[0]": 8,
-            "boom.boom[1]": 45.0,  # input as deg, internal: rad
-            "der(pedestal.boom[2])": 1.0,  # azimuthal movement 1 deg per time step
-            "wire.boom[0]": 1e-6,
-            "der(fixation.boom[1])": 0.0,
-            "der(fixation.boom[2])": 0.0,
-        },
-    )
-    if show:
-        plot_result(result)
-    col = get_result_column("boom.end[0]", mobile_crane_fmu)
-    assert col is not None, "Column of 'boom.end[0]' not found"
-    print("ROW0", col, result[0])
-    for i, row in enumerate(result):
-        assert abs(row[0] - i) < 1e-9
-        print(i, row[0], row[col])
-        # assert abs(row[col] - 8 / sqrt(2) * cos(radians(row[0]))) < 1e-9
-    assert abs(result[10][col + 0] - 8 / sqrt(2) * cos(radians(10))) < 1e-9, f"boom_0(t=10):{result[10][col + 0]}"
-    assert abs(result[10][col + 1] - 8 / sqrt(2) * sin(radians(10))) < 1e-9, f"boom_1(t=10):{result[10][col + 1]}"
-    assert abs(result[10][col + 2] - 3 - 8 / sqrt(2)) < 1e-9, f"boom_2(t=10):{result[10][col + 2]}"
+    """Run the FMU using fmpy. Initial position is boom1 45 deg up. Pedestal is moved 1deg/s unit for 10s."""
 
+    def check_boom_end(pos: Sequence, angle: float):
+        expected = np.array((0, 0, 3)) + 8 / sqrt(2) * np.array((cos(radians(angle)), sin(radians(angle)), 1))
+        assert np.allclose(expected, pos), f"@{angle}: {pos} != {expected}"
 
-def test_run_mobilecrane_accelerate(mobile_crane_fmu, show: bool):
-    result = simulate_fmu(
-        str(mobile_crane_fmu),
-        stop_time=10.0,
-        step_size=1,
-        output_interval=1.0,
-        solver="Euler",
-        debug_logging=True,
-        logger=print,  # fmi_call_logger=print,
-        start_values={
-            "pedestal.mass": 10000.0,
-            "pedestal.boom[0]": 3.0,
-            "pedestal.boom[2]": 0.0,
-            "boom.mass": 1000.0,
-            "boom.boom[0]": 8,
-            "boom.boom[1]": 45.0,  # input as deg, internal: rad
-            "der(pedestal.boom[2],2)": 0.01,  # azimuthal acceleration 1 deg/ (time unit**2)
-            "wire.boom[0]": 1e-6,
-        },
-    )
-    if show:
-        plot_result(result)
+    def run_simulation(
+        p_speed: float = 0.0,
+        p_acc: float = 0.0,
+        show: bool = False,
+    ):
+        result = simulate_fmu(
+            str(mobile_crane_fmu),
+            stop_time=10.0,
+            step_size=1,
+            output_interval=1.0,
+            solver="Euler",
+            debug_logging=True,
+            logger=print,  # fmi_call_logger=print,
+            start_values={
+                "pedestal.mass": 10000.0,
+                "pedestal.boom[0]": 3.0,
+                "pedestal.boom[2]": 0.0,
+                "boom.mass": 1000.0,
+                "boom.boom[0]": 8,
+                "boom.boom[1]": 45.0,  # input as deg, internal: rad
+                #            "der(der(pedestal.boom[2]))": 0.1,  # does not work because it fails fmpy validation
+                "der(pedestal.boom[2])": p_speed,  # pedestal azimuthal angular speed in degrees/time
+                "der(pedestal.boom[2],2)": p_acc,  # pedestal azimuthal angular acceleration in degrees/time**2
+                "wire.boom[0]": 1e-6,
+            },
+        )
+        if show:
+            plot_result(result)
+        col = get_result_column("boom.end[0]", mobile_crane_fmu)
+        assert col is not None, "Column of 'boom.end[0]' not found"
+        print("ROW0", col, result[0])
+        dt = 1.0
+        for i, row in enumerate(result):
+            assert abs(row[0] - i) < 1e-9
+            angle = 0.0 + i * dt * p_speed + i * (i - 1) / 2 * p_acc * dt * dt  # results are read before step!
+            check_boom_end((row[col], row[col + 1], row[col + 2]), angle=angle)
+        #    assert abs(result[10][col + 1] - 8 / sqrt(2) * sin(radians(10))) < 1e-9, f"boom_1(t=10):{result[10][col + 1]}"
+        assert abs(result[10][col + 2] - 3 - 8 / sqrt(2)) < 1e-9, f"boom_2(t=10):{result[10][col + 2]}. z constant"
+
+    logger.info("fmpy. simulate crane without movement.")
+    run_simulation()
+    logger.info("fmpy. simulate crane moving pedestal with constant speed 1.0 deg/s")
+    run_simulation(p_speed=1.0, show=False)
+    logger.info("fmpy. simulate crane moving pedestal with constant acceleration 0.1 deg/s^2")
+    run_simulation(p_acc=0.1, show=False)
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    crane_fmu = make_mobile_crane_fmu(only_path=False)
     # test_mass_center()
-    # test_mobilecrane_fmu( crane_fmu, show=True)
-    # test_run_mobilecrane_static(crane_fmu, show=True)
-    # test_run_mobilecrane_move(crane_fmu, show=True)
-    test_run_mobilecrane_accelerate(crane_fmu, show=True)
+    # test_mobilecrane_fmu( _mobile_crane_fmu(), show=True)
+    # test_run_mobilecrane_static(_mobile_crane_fmu(), show=True)
+    # test_run_mobilecrane_move(_mobile_crane_fmu(), show=True)

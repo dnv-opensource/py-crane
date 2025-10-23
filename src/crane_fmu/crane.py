@@ -48,15 +48,22 @@ class Crane(object):
       cannot be addressed.
       For fixed booms that is a good approximation,
       but for the load (i.e. the center of mass of the loose connection) it represents the limitation that the load cannot turn.
+
+      Args:
+          degrees (bool)=False: Optional possibility to specify that all angles are measured in degrees.
+          to_crane_angle (Callable) = None: Optional possibility to specify a non-default transformation
+             from vessel Euler angles to crane coordinate system. Default: (north-east-down as r-p-y + north-west-up)
+             Should be a function of an Euler angle, corresponding also to the choice of 'degrees'.
     """
 
     to_crane_angle: Callable
 
-    def __init__(self, to_crane_angle: Callable | None = None):
+    def __init__(self, to_crane_angle: Callable | None = None, degrees: bool = False):
         """Initialize the crane object."""
-        Crane.to_crane_angle: Callable = Crane.to_crane_angle_default  # args: (angle, degrees:bool = False)
+        self.degrees = degrees
+        self.to_crane_angle: Callable = self.to_crane_angle_default  # args: (angle, degrees:bool = False)
         if to_crane_angle is not None:  # non-default transformation function
-            Crane.to_crane_angle = to_crane_angle
+            self.to_crane_angle = to_crane_angle
         self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # placeholder for current rotations (yaw,pitch,roll) of crane
         self._d_rot: Rot | None = None  # placeholder for current angular movement
         self._position = np.array((0.0, 0.0, 0.0), float)
@@ -121,44 +128,39 @@ class Crane(object):
         self.boom0.origin = newval
         self.boom0.update_child(change=Change.POS)
 
-    @property
-    def rot(self) -> Rot:
+    def rot(self, rpy: Sequence | np.ndarray | None = None):
+        """Get/Set a new absolute rotation through an Euler angle."""
+        if rpy is not None:  # set a new value
+            self._rot = self.rotate(rpy, absolute=True)
         return self._rot
-
-    @rot.setter
-    def rot(self, rpy: Sequence | np.ndarray):
-        """Set a new absolute rotation through an Euler angle."""
-        self._rot = self.rotate(rpy, degrees=False, absolute=True)
 
     def d_rot(self, rpy: Sequence | np.ndarray | None = None) -> Rot | None:
         """Set a new relative rotation through an Euler angle.
         Note: Only the rotation object is defined. The crane is not rotated.
         """
         if rpy is not None:  # set a new value and return the result
-            angle = Crane.to_crane_angle(np.array(rpy), degrees=False)
+            angle = self.to_crane_angle(np.array(rpy))
             if np.isclose(angle, (0, 0, 0)):  # stop rotation
                 self._d_rot = None
             else:
                 self._d_rot = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
         return self._d_rot
 
-    @classmethod
-    def to_crane_angle_default(cls, rpy: np.ndarray, degrees: bool = False):
+    def to_crane_angle_default(self, rpy: np.ndarray):
         """Transform the given extrinsic euler angles into the the coordinate system used by the crane.
         Note: In maritime applications, the North-East-Down is often used,
            while crane uses naturally a North-West-Up system. Both are right handed.
         """
-        _angle = np.radians(rpy) if degrees else rpy
+        _angle = np.radians(rpy) if self.degrees else rpy
         _angle[1] = -_angle[1]
         _angle[2] = -_angle[2]
         return _angle
 
-    def rotate(self, rpy: Sequence | np.ndarray | Rot, degrees: bool = False, absolute: bool = False):
+    def rotate(self, rpy: Sequence | np.ndarray | Rot, absolute: bool = False):
         """Set the orientation to a new value according to ISO 1151–2 (roll,pitch,yaw) - rotations.
 
         Args:
             rpy (Sequence): Sequence of roll, pitch and yaw angles or a rotation object
-            degrees (bool)=False: Optional possibility to supply the angles in degrees. Default is radians.
             absolute (bool)=False: euler rotation as absolute angle or relative to current self._rot
 
         The current orientation is maintained as scipy rotation object
@@ -169,7 +171,7 @@ class Crane(object):
             self._rot = rpy if absolute else self._rot * rpy
             angle = self._rot.as_euler("XYZ")
         else:  # euler angle provided
-            angle = Crane.to_crane_angle(np.array(rpy), degrees)
+            angle = self.to_crane_angle(np.array(rpy))
             rot_angle = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
             self._rot = rot_angle if absolute else rot_angle * self._rot  # absolute or relative angle
             # print(f"Angle {np.degrees(angle)}. => matrix \n{self._rot.as_matrix()}")

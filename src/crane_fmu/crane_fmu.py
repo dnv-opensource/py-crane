@@ -4,7 +4,6 @@ import logging
 from typing import Any
 
 import matplotlib.pyplot as plt
-import numpy as np
 from component_model.model import Model
 from component_model.variable import Variable
 from component_model.variable_naming import VariableNamingConvention
@@ -32,7 +31,7 @@ class CraneFMU(Model, Crane):
         description (str) = None: An (optional
         author (str) = "Siegfried Eisinger (DNV)
         version (str) = "0.1"
-        u_angle (str) = "deg": angle display units (internally radians are used)
+        u_length (str) = "m": length display units (internally m are used)
         u_time (str) = 's': time display units (internally seconds are used)
     """
 
@@ -42,16 +41,16 @@ class CraneFMU(Model, Crane):
         description: str = "A crane model",
         author: str = "Siegfried Eisinger (DNV)",
         version: str = "0.1",
+        degrees: bool = False,
         u_length: str = "m",
-        u_angle: str = "deg",
         u_time: str = "s",
         **kwargs: Any,
     ):
         """Initialize the crane object."""
-        Model.__init__(self, name=name, description=description, author=author, version=version, **kwargs)
+        super().__init__(name=name, description=description, author=author, version=version, **kwargs)
+        Crane.__init__(self, to_crane_angle=None, degrees=degrees)
         self.variable_naming = VariableNamingConvention.structured
         self.u_length = u_length
-        self.u_angle = u_angle
         self.u_time = u_time
         self._boom0 = BoomFMU(
             self,
@@ -61,29 +60,40 @@ class CraneFMU(Model, Crane):
             mass="1e-10 kg",
             boom=(1e-10, 0, 0),
         )
-        self.crane_lin_speed = np.array((0.0,) * 3, float)
-        self._crane_lin_speed = Variable(
+        self._velocity = Variable(
             self,
-            "der(fixation.end)",
-            "Crane fixation linear speed in 3D",
+            "velocity",
+            "Crane change of position per time unit (speed) in 3D",
             causality="input",
             variability="continuous",
             start=("0.0",) * 3,
-            local_name="crane_lin_speed",
         )
-
-    #            boom_rng=(None, (0, "180" + u_angle), ("-180" + u_angle, "180" + u_angle)),
-    #         self.dLoad = 0.0
-    #         # definition of crane level interface variables
-    #         self._dLoad = Variable(  # input variable
-    #             self,
-    #             name="dLoad",
-    #             description="Load added (or taken off) per time unit to/from the end of the last boom (the hook)",
-    #             causality="input",
-    #             variability="continuous",
-    #             start="0.0 kg" + "/" + u_time,
-    #             on_step=lambda t, dt: self.boom0[-1].mass + self.dLoad * dt,
-    #         )
+        self._d_velocity = Variable(
+            self,
+            "d_velocity",
+            "Crane change of velocity per time unit (acceleration) in 3D",
+            causality="input",
+            variability="continuous",
+            start=("0.0",) * 3,
+        )
+        self._d_angular = Variable(
+            self,
+            "d_angular",
+            "Crane change of angle per time unit (angular velocity) as 3D Euler roll-pitch-yaw angle",
+            causality="input",
+            variability="continuous",
+            start=("0.0",) * 3,
+            on_set=self.d_rot,
+        )
+        self._d2_angular = Variable(
+            self,
+            "der(d_angular)",
+            "Angualar acceleration of crane in rad/s**2:",
+            causality="input",
+            variability="continuous",
+            start="0.0 1/s**2",
+            local_name="d2_angular",
+        )
 
     def add_boom(self, *args, **kvargs):
         """Add a boom to the crane. Overridden to ensure that a BoomFMU is added.

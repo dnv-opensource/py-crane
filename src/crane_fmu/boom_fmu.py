@@ -123,7 +123,7 @@ class BoomFMU(Boom):
         model.ensure_boom(self)  # ensure that the boom object is registered with the crane
         u_time = model.u_time
         u_length = model.u_length
-        u_angle = model.u_angle
+        u_angle = "deg" if model.degrees else "rad"
 
         # Interface specifications. When we have the start values we can instantiate the Boom
         _c, _v = ("parameter", "fixed") if mass_rng is None else ("input", "continuous")
@@ -190,62 +190,27 @@ class BoomFMU(Boom):
             initial="exact",
             start=self.force,
         )
-        # additional derivative variables
-        self._der1_boom = model.add_variable(
-            f"der({name}.boom)",
-            description="Continuous change to the boom (lengthen, polar-rotation, azimuthal-rotation) wrt. origin",
-            causality="input",
-            variability="continuous",
-        )
-        self._der2_boom = model.add_variable(
-            f"der(der({name}.boom))",
-            description="Continuous acceleration to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
-            causality="input",
-            variability="continuous",
-        )
-
-        if self._mass.range[0][0] != self._mass.range[0][1]:  # mass is changeable (normally the load)
-            self._der1_mass = model.add_variable(
-                f"der({name}.mass)",
-                description="Continuous change to the mass (i.e. load change)",
+        # additional derivative variables (but not for fixation, as these are Euler movements on the crane!)
+        if self.name != "fixation":
+            self._der1_boom = model.add_variable(
+                f"der({name}.boom)",
+                description="Continuous change to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
                 causality="input",
                 variability="continuous",
-                start=f"0 kg/{u_time}",
+                start=(f"0 m/{u_time}", f"0 deg/{u_time}", f"0 deg/{u_time}"),
             )
-
-
-#     def angular_velocity_step(self, t, dt):
-#         """Step angular velocity. As this is the derivative of boom angles, boom angles are stepped."""
-#         if self.angularVelocity[0] != 0 or self.angularVelocity[1] != 0:
-#             if self.angularVelocity[0] != 0 and self.angularVelocity[1] != 0:
-#                 self.boom_setter((None, self.boom[1] + self.angularVelocity[0], self.boom[2] + self.angularVelocity[1]))
-#             elif self.angularVelocity[0] != 0:
-#                 self.boom_setter((None, self.boom[1] + self.angularVelocity[0], None))
-#             elif self.angularVelocity[1] != 0:
-#                 self.boom_setter((None, None, self.boom[2] + self.angularVelocity[1]))
-#             logger.debug(f"Stepping angular {self.name}({self.angularVelocity}) => {self.boom}, dir:{self.direction}")
-
-#     def change_length(self, dL: float):
-#         """Change the length of the boom (if allowed)
-#         Note: Instantaneous length velocity changes are accepted, even if they create (small) unrealistic falling movements.
-#
-#         Args:
-#             dL (float): length change
-#         """
-#         self.boom_setter((self.boom[0] + dL, None, None))
-#
-#     def change_mass(self, dM: float, center: float | None = None):
-#         """Change the mass of the boom, e.g. when adding or releasing a load at the wire.
-#
-#         Args:
-#             dM (float): The added or subtracted mass
-#             relCOM (float)=None: Optional possibility to change the relative c_m point along the boom (between 1e-6 and 1.0), i.e. changing self.mass_center
-#
-#         .. note:: We treat mass changes as non-dynamic effect (dt=None), since the change in c_m position should not be associated with a velocity or acceleration
-#         .. note:: Mass changes have no direct effect on attached boom (which do normally not exist, since the load is often attached to the last boom)
-#         """
-#         if center is not None:
-#             self.mass_center[0] = center
-#         self.mass += dM
-#         self._c_m = self.c_m  # re-calculate the own COM
-#         # call from crane: self.calc_statistics_dynamics( dt=None, isInitiator=True) # re-calculate the static properties and inform parent booms of the change in c_m
+            self._der2_boom = model.add_variable(
+                f"der(der({name}.boom))",
+                description="Acceleration to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
+                causality="input",
+                variability="continuous",
+                start=(f"0 m/{u_time}**2", f"0 deg/{u_time}**2", f"0 deg/{u_time}**2"),
+            )
+            if self._mass.range[0][0] != self._mass.range[0][1]:  # mass is changeable (normally the load)
+                self._der1_mass = model.add_variable(
+                    f"der({name}.mass)",
+                    description="Continuous change to the mass (i.e. load change)",
+                    causality="input",
+                    variability="continuous",
+                    start=f"0 kg/{u_time}",
+                )
