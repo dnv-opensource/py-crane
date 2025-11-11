@@ -5,7 +5,7 @@ from typing import Any, Callable, Generator, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from component_model.variable import euler_rot_spherical
+from component_model.variable import cartesian_to_spherical
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from scipy.spatial.transform import Rotation as Rot
@@ -48,9 +48,12 @@ class Crane(object):
       cannot be addressed.
       For fixed booms that is a good approximation,
       but for the load (i.e. the center of mass of the loose connection) it represents the limitation that the load cannot turn.
+    * all angles inside the crane are in radians. Only when the interface to the outside world is defined as FMU,
+      the possibility exists that parameters, inputs and outputs are in degrees.
+    * forces and torque are only calculated in relation to the fixation (the whole crane),
+      not in ralation to moving joints.
 
       Args:
-          degrees (bool)=False: Optional possibility to specify that all angles are measured in degrees.
           to_crane_angle (Callable) = None: Optional possibility to specify a non-default transformation
              from vessel Euler angles to crane coordinate system. Default: (north-east-down as r-p-y + north-west-up)
              Should be a function of an Euler angle, corresponding also to the choice of 'degrees'.
@@ -58,14 +61,17 @@ class Crane(object):
 
     to_crane_angle: Callable
 
-    def __init__(self, to_crane_angle: Callable | None = None, degrees: bool = False):
+    def __init__(self, to_crane_angle: Callable | None = None):
         """Initialize the crane object."""
-        self.degrees = degrees
         self.to_crane_angle: Callable = self.to_crane_angle_default  # args: (angle, degrees:bool = False)
         if to_crane_angle is not None:  # non-default transformation function
             self.to_crane_angle = to_crane_angle
-        self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # placeholder for current rotations (yaw,pitch,roll) of crane
-        self._d_rot: Rot | None = None  # placeholder for current angular movement
+        self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # placeholder for current rotations (roll,pitch,yaw) of crane
+        self._angular = np.array((0.0, 0.0, 0.0), float)  # placeholder for current angle as (roll,pitch,yaw)
+        self.d_angular = np.array((0.0, 0.0, 0.0), float)  # placeholder for current angular speed as (roll,pitch,yaw)
+        self.d2_angular = np.array(
+            (0.0, 0.0, 0.0), float
+        )  # placeholder for current angular acceleration as (roll,pitch,yaw)
         self._position = np.array((0.0, 0.0, 0.0), float)
         self.velocity = np.array((0.0, 0.0, 0.0), float)
         self.d_velocity = np.array((0.0, 0.0, 0.0), float)
@@ -77,6 +83,9 @@ class Crane(object):
             mass=1e-10,
             boom=(1e-10, 0.0, 0.0),
         )
+        self.boom_: Boom = self.boom0  # keep track of the last boom
+        self.torque = np.array((0, 0, 0), float)
+        self.force = np.array((0, 0, 0), float)
 
     @property
     def boom0(self) -> Boom:
@@ -116,7 +125,8 @@ class Crane(object):
         if "anchor0" not in kvargs:
             last = next(self.booms(reverse=True))
             kvargs.update({"anchor0": last})
-        return Boom(self, *args, **kvargs)
+        self.boom_ = Boom(self, *args, **kvargs)
+        return self.boom_  # the new last boom
 
     @property
     def position(self) -> np.ndarray:
@@ -128,30 +138,29 @@ class Crane(object):
         self.boom0.origin = newval
         self.boom0.update_child(change=Change.POS)
 
+    @property
+    def angular(self) -> np.ndarray:
+        """Get the current euler angle of the crane (internally stored as Rot)."""
+        return self._angular  # retrieve the stored value, while the orientation setting is stored in _rot
+
+    @angular.setter
+    def angular(self, newval: np.ndarray):
+        """Set a new absolute euler angle of the crane and store internally as Rot."""
+        self.rotate(newval, absolute=True)
+        self._angular = newval  # remember, so that we can retrieve it. The orientation itself is in _rot
+
     def rot(self, rpy: Sequence | np.ndarray | None = None):
         """Get/Set a new absolute rotation through an Euler angle."""
         if rpy is not None:  # set a new value
             self._rot = self.rotate(rpy, absolute=True)
         return self._rot
 
-    def d_rot(self, rpy: Sequence | np.ndarray | None = None) -> Rot | None:
-        """Set a new relative rotation through an Euler angle.
-        Note: Only the rotation object is defined. The crane is not rotated.
-        """
-        if rpy is not None:  # set a new value and return the result
-            angle = self.to_crane_angle(np.array(rpy))
-            if np.isclose(angle, (0, 0, 0)):  # stop rotation
-                self._d_rot = None
-            else:
-                self._d_rot = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
-        return self._d_rot
-
     def to_crane_angle_default(self, rpy: np.ndarray):
         """Transform the given extrinsic euler angles into the the coordinate system used by the crane.
         Note: In maritime applications, the North-East-Down is often used,
            while crane uses naturally a North-West-Up system. Both are right handed.
         """
-        _angle = np.radians(rpy) if self.degrees else rpy
+        _angle = np.array(rpy, float)  # radians expected here!
         _angle[1] = -_angle[1]
         _angle[2] = -_angle[2]
         return _angle
@@ -171,12 +180,13 @@ class Crane(object):
             self._rot = rpy if absolute else self._rot * rpy
             angle = self._rot.as_euler("XYZ")
         else:  # euler angle provided
-            angle = self.to_crane_angle(np.array(rpy))
+            angle = self.to_crane_angle(np.array(rpy, float))
             rot_angle = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
             self._rot = rot_angle if absolute else rot_angle * self._rot  # absolute or relative angle
-            # print(f"Angle {np.degrees(angle)}. => matrix \n{self._rot.as_matrix()}")
-            # print(f"x,y,z->{self._rot.apply((1,0,0))}, {self._rot.apply((0,1,0))}, {self._rot.apply((0,0,1))}")
-        self.boom0.boom_setter(euler_rot_spherical(angle, (None, 0.0, 0.0)))  # fixation spherical angle
+            self._angular = np.array(rpy, float) if absolute else self._angular + np.array(rpy, float)
+        fixation_boom = cartesian_to_spherical(self._rot.apply((1e-10, 0.0, 0.0)))
+        fixation_boom[0] = None
+        self.boom0.boom_setter(list(fixation_boom))  # fixation spherical angle
         return self._rot
 
     def calc_statics_dynamics(self, dt=None):
@@ -187,17 +197,33 @@ class Crane(object):
             next(self.booms(reverse=True)).calc_statics_dynamics(dt)
         except StopIteration:
             pass
+        _M0, _c0 = self.boom0.c_m_sub
+        _M1, _c1 = self.boom_.c_m_sub
+        self.c_m_sub = (_M0 + _M1, (_M0 * _c0 + _M1 * _c1) / (_M0 + _M1))  # c_m_sub for whole crane
+        # after the boom properties are updated, we can calculate the crane forces and torques
+        self.torque = self.boom0.torque + self.boom_.torque
+        self.force = self.boom0.force + self.boom_.force
+
+    #         if dt is not None:
+    #             self.velocity = (c_m_sub - c_m_sub1) / dt
+    #             acceleration = (self.velocity - velocity0) / dt
+    #                 assert np.linalg.norm(self.velocity) < 1e50, f"Very high velocity {self.velocity}. Check time intervals!"
+    #                 if self.model.calc_boom_forces_torques:
+    #                     self.torque += m * np.cross(c_m_sub, acceleration)  # type: ignore ## np issue
+    #                     # linear force due to acceleration in boom direction
+    #                     self.force = m * np.dot(self.direction, acceleration) * self.direction  # type: ignore
 
     def do_step(self, current_time: float, step_size: float) -> bool:
         """Do a simulation step of size `dt` at `time` ."""
-        logger.debug(f"CRANE.do_step {current_time}:")
         if any(acc != 0 for acc in self.d_velocity):  # linear acceleration ongoing
             self.velocity += self.d_velocity * step_size
         if any(v != 0 for v in self.velocity):  # position change ongoing
             self.position += self.velocity * step_size  # Note: changes also origin of fixture and all children
         # orientation changes...
-        if self._d_rot is not None:
-            self.rotate(self._d_rot * step_size, absolute=False)  # Note: changes also rot, ... and all children
+        if not np.allclose(self.d2_angular, (0.0, 0.0, 0.0)):
+            self.d_angular += step_size * self.d2_angular
+        if not np.allclose(self.d_angular, (0.0, 0.0, 0.0)):
+            self.rotate(self.d_angular * step_size, absolute=False)  # Note: changes also rot, ... and all children
 
         # after all changed input variables are taken into account, update the statics and dynamics of the system
         self.calc_statics_dynamics(step_size)

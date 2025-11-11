@@ -1,13 +1,18 @@
 import logging
-from math import cos, radians, sin, sqrt
+import sys
+from math import cos, isinf, radians, sin, sqrt
 from pathlib import Path
 from typing import Sequence
 
 import numpy as np
 import pytest
 from component_model.utils.xml import read_xml
+from component_model.variable import Variable
 from fmpy import dump, plot_result, simulate_fmu
 from fmpy.validation import validate_fmu
+from pythonfmu.enums import Fmi2Causality
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
 
 np.set_printoptions(formatter={"float_kind": "{:.4f}".format})
 
@@ -85,6 +90,64 @@ def test_mobilecrane_fmu(mobile_crane_fmu, show: bool = False):
         dump(mobile_crane_fmu)
 
 
+def test_fmu():
+    """Test the FMU object itself."""
+    from examples.mobile_crane import MobileCrane
+
+    def test_vals(v: Variable, k: int, val, rng, typ: type) -> tuple:
+        """Identify test values with respect to the value and range."""
+        res: tuple = ()
+        if rng is None:
+            res = (val,)
+        else:
+            vmin, vmax = rng
+            if typ is float:
+                if abs(vmax - vmin) < 1e-15:  # fixed value
+                    assert abs(val - vmin) < 1e-15, "Value of {v.name}[{k}] shall be fixed to {vmin}. Found {val}"
+                    res = (val,)
+                else:
+                    lval = (val - 10) * 10 if isinf(vmin) else vmin
+                    rval = (val + 10) * 10 if isinf(vmax) else vmax
+                    if vmin < 0.0 < vmax and val != 0.0:
+                        res = (val, lval, rval, 0.0)
+                    else:
+                        res = (val, lval, rval)
+            elif typ is int:  # range is mandatory
+                _res = [val]
+                if val != vmin:
+                    _res.append(vmin)
+                if val != vmax:
+                    _res.append(vmax)
+                res = tuple(_res)
+        return res
+
+    fmu = MobileCrane()
+    for _i, v in fmu.vars.items():
+        if v is not None:
+            #             print(f"units:({v.unit[0]}, {v.unit[1]}, {v.unit[2]})")
+            #             v.setter( (1, 1, 1))
+            #             print(fmu.d_angular)
+            #             print(f"getter() after (1,1,1): {v.getter()}")
+            #
+            val = v.getter()
+            for k, x in enumerate(val):
+                assert np.issubdtype(type(x), np.floating) or type(x) is v.typ, (
+                    f"Wrong variable type detected for {v.name}[{k}]. {type(x)} != {v.typ}"
+                )
+            if v.causality in (Fmi2Causality.input, Fmi2Causality.parameter):
+                for k in range(len(v)):
+                    print(test_vals(v, k, val[k], v.range[k], v.typ))
+                    for newval in test_vals(v, k, val[k], v.range[k], v.typ):
+                        arr = [None] * len(v)
+                        arr[k] = newval
+                        print(f"Set {v.name}[{k}] with {arr}")
+                        v.setter(arr, -1)
+                        readback = v.getter()[k]
+                        assert abs(newval - readback) < 1e-12, (
+                            f"{readback} != {newval}. Diff {abs(newval - readback)} after {v.name}[{k}] change."
+                        )
+
+
 # @pytest.mark.skip("Run the FMU")
 def test_run_mobilecrane_static(mobile_crane_fmu, show: bool):
     result = simulate_fmu(  # static run
@@ -154,6 +217,7 @@ def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
                 "der(pedestal.boom[2])": p_speed,  # pedestal azimuthal angular speed in degrees/time
                 "der(pedestal.boom[2],2)": p_acc,  # pedestal azimuthal angular acceleration in degrees/time**2
                 "wire.boom[0]": 1e-6,
+                # "d_angular[2]": 1.0,
             },
         )
         if show:
@@ -184,3 +248,4 @@ if __name__ == "__main__":
     # test_mobilecrane_fmu( _mobile_crane_fmu(), show=True)
     # test_run_mobilecrane_static(_mobile_crane_fmu(), show=True)
     # test_run_mobilecrane_move(_mobile_crane_fmu(), show=True)
+    # test_fmu()

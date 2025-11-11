@@ -1,5 +1,5 @@
 import logging
-from math import radians, sqrt
+from math import cos, radians, sin, sqrt
 from typing import Callable, Sequence
 
 import matplotlib.pyplot as plt
@@ -9,6 +9,7 @@ from component_model.variable import (
     rot_from_spherical,
 )
 from matplotlib.animation import FuncAnimation
+from scipy.spatial.transform import Rotation as Rot
 
 from crane_fmu.boom import Boom
 from crane_fmu.crane import Crane
@@ -22,7 +23,7 @@ np.set_printoptions(precision=4, suppress=True)
 
 def set_wire_direction(r: Boom, angles: Sequence):
     """Set the angles of a wire object. Makes only sense for preparation of test cases. Not allowed in Boom class."""
-    _angles = np.radians(np.array(angles)) if r.model.degrees else np.array(angles)
+    _angles = np.radians(np.array(angles))
     r.boom[1:] = _angles
     assert r.anchor0 is not None
     r.rot(r.anchor0.rot() * rot_from_spherical(_angles))
@@ -115,7 +116,7 @@ def crane(scope="module", autouse=True):
 
 
 def _crane():
-    crane = Crane(degrees=True)
+    crane = Crane()
     _ = crane.add_boom(
         name="pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
@@ -146,7 +147,7 @@ def test_initial(crane):
     """Test the initial state of the crane."""
     # test general crane issues
     assert isinstance(crane.to_crane_angle, Callable)  # type: ignore [arg-type] # do not know about any other way
-    assert np.allclose(crane.to_crane_angle(np.array((90, 90, 90))), np.pi / 2 * np.array((1, -1, -1)))
+    assert np.allclose(crane.to_crane_angle(np.pi / 2 * np.array((1, 1, 1))), np.pi / 2 * np.array((1, -1, -1)))
     # test indexing of booms
     booms = [b.name for b in crane.booms()]
     assert booms == ["fixation", "pedestal", "boom1", "wire"]
@@ -196,7 +197,7 @@ def test_initial(crane):
     # Check center of mass calculation
     M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
     crane.calc_statics_dynamics()
-    _M, _c = pedestal.c_m_sub
+    _M, _c = crane.c_m_sub
     assert abs(_M - M) < 1e-9, f"Masses {_M} != {M}"
     np.allclose(_c, c)
 
@@ -206,7 +207,7 @@ def test_initial(crane):
     wire.mass = 1e-100
     M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
     crane.calc_statics_dynamics()
-    _M, _c = fixation.c_m_sub
+    _M, _c = crane.c_m_sub
     assert abs(_M - M) < 1e-9, f"Masses {_M} != {M}"
     np.allclose(_c, c)
     np.allclose(fixation.torque, (0, M * c[0] * 9.81, 0))
@@ -217,7 +218,7 @@ def test_initial(crane):
     wire.mass = 1e-100
     M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
     crane.calc_statics_dynamics()
-    _M, _c = pedestal.c_m_sub
+    _M, _c = crane.c_m_sub
     assert abs(_M - 2200) < 1e-9, f"Masses {_M} != {M}"
     np.allclose(_c, (0, 0, (2000 * 1.5 + 200 * 5) / 2200))
     np.allclose(pedestal.torque, (0, 0, 0))
@@ -376,6 +377,8 @@ def test_pendulum(crane, show):
 
     # Forced yaw movement, which does not have effect on load (inertia not modelled)
     set_wire_direction(r, (0, 0))
+    crane.rot((0, 0, 0))  # reset crane
+    r.pendulum_relax()
     r._damping_time = 100  # damping
     time, z_pos, speed, z_max = sim_run(
         t_end=10,
@@ -388,7 +391,7 @@ def test_pendulum(crane, show):
         crane_yaw=lambda t: 0.01 * np.sin(2.132 * t),
     )
     _max = maximum(z_max)
-    assert abs(_max[1] - 0.0) < 1e-10, f"Yaw movement cannot be forced if load starts vertically: {_max}"
+    assert abs(_max[1] - 0.0) < 1e-9, f"Yaw movement cannot be forced if load starts vertically (no torsion): {_max}"
 
     # roll the whole crane according to a sin function in x-direction, causing forced pendulum actions
     # Perform a frequency sweep, clearly exhibiting the resonant behaviour of the crane.
@@ -427,34 +430,72 @@ def test_pendulum(crane, show):
 
 # @pytest.mark.skip()
 def test_sequence(crane, show):
+    """Test sequence of crane movements and check that position is as intended."""
+    from component_model.variable import rot_from_vectors
+
+    def check_rot(r: Rot, vec: Sequence):
+        """Compare a rotation object with the expected result when rotating (0,0,1)."""
+        rot2 = rot_from_vectors(np.array((0, 0, 1), float), np.array(vec, float))
+        if not np.allclose(r.apply(np.array((0, 0, 1))), rot2.apply(np.array((0, 0, 1)))):
+            print("Rotation matrices not equal:")
+            print(r.as_euler("XYZ", degrees=True))
+            print(rot2.as_euler("XYZ", degrees=True))
+            print(f"Rotate (0,0,1): {rot2.apply(np.array((0, 0, 1)))} =? {r.apply(np.array((0, 0, 1)))}")
+            raise AssertionError("Rotation object error") from None
+
     f, p, b1, r = [b for b in crane.booms()]
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Initial state. Crane folded")
     assert np.allclose(r.origin + r.length * r.direction, (10, 0, 2.5))
     assert np.allclose(r.end, (10, 0, 2.5))
-    # boom1 up (vertical)
+
+    logger.info("boom1 up (vertical)")
     b1.boom_setter((None, 0, None))
     assert np.allclose(r.end, (0 + 0.5 / sqrt(2), 0, 3 + 10 - 0.5 / sqrt(2)), atol=0.1)  # somewhat lower due to length
     pendulum_relax(r, show=False)
     assert np.allclose(r.end, (0, 0, 3 + 10 - 0.5), atol=0.05), f"Found equilibrium position {r.end}"
-    # boom1 45 deg up
+
+    logger.info("boom1 45 deg up")
     b1.boom_setter((None, radians(45), None))
     r.pendulum_relax()
     assert np.allclose(r.end, [10 / sqrt(2), 0, 3 - 0.5 + 10 / sqrt(2)])
+    check_rot(b1._rot, (1.0 / sqrt(2), 0.0, 1.0 / sqrt(2)))
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). boom 1 at 45 degrees.")
-    # wire 0.5m -> 5m
+
+    logger.info("wire 0.5m -> 5m")
     r.boom_setter((5.0, None, None))
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Wire 0.5m -> 5m")
     r.pendulum_relax()
     assert np.allclose(r.end, [10 / sqrt(2), 0, 3 + 10 / (sqrt(2)) - 5]), f"Found load position {r.end}"
-    # turn base 45 deg
-    p.boom_setter((None, None, radians(45)))
+
+    logger.info("turn base 360 deg in steps of 5 deg")
+    for i in range(73):  # turn in steps of 5 deg
+        p.boom_setter((None, None, radians(i * 5)))
+        assert np.allclose(
+            b1.end, (10 / sqrt(2) * cos(radians(i * 5)), 10 / sqrt(2) * sin(radians(i * 5)), 3 + 10 / sqrt(2))
+        )
+        check_rot(b1._rot, (1.0 / sqrt(2) * cos(radians(i * 5)), 1.0 / sqrt(2) * sin(radians(i * 5)), 1.0 / sqrt(2)))
+
+    check_rot(b1._rot, (1.0 / sqrt(2), 0.0, 1.0 / sqrt(2)))  # back to starting point
     r.pendulum_relax()
-    assert np.allclose(r.end, (10 / sqrt(2) / sqrt(2), 10 / sqrt(2) / sqrt(2), 3 - 5 + 10 / sqrt(2)))
     if show:
-        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Turn base 45 degrees")
+        show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Turned base 360 degrees")
+
+    logger.info("roll crane 10 deg and 20 deg and back")
+    crane.rot((radians(10), 0, 0))
+    check_rot(b1._rot, (1.0 / sqrt(2), -1.0 / sqrt(2) * sin(radians(10)), 1.0 / sqrt(2) * cos(radians(10))))
+    assert np.allclose(
+        b1.end, (10 / sqrt(2), -(3 + 10 / sqrt(2)) * sin(radians(10)), (3 + 10 / sqrt(2)) * cos(radians(10)))
+    ), f"Found {b1.end}"
+    crane.rot((radians(20), 0, 0))  # these rotations are absolute, not relative
+    check_rot(b1._rot, (1.0 / sqrt(2), -1.0 / sqrt(2) * sin(radians(20)), 1.0 / sqrt(2) * cos(radians(20))))
+    assert np.allclose(
+        b1.end, (10 / sqrt(2), -(3 + 10 / sqrt(2)) * sin(radians(20)), (3 + 10 / sqrt(2)) * cos(radians(20)))
+    ), f"Found {b1.end}"
+    crane.rot((0, 0, 0))
+    check_rot(b1._rot, (1.0 / sqrt(2), 0.0, 1.0 / sqrt(2)))  # back to starting point
 
     len_0 = r.length
     # boom1 up. Dynamic
@@ -498,18 +539,18 @@ def test_rotation(crane, show):
     if show:
         show_crane(crane, markCOM=True, markSubCOM=False, title="test_rotation(). Before rotation. b1 east.")
     com = (50 * np.array((10, 0, 2.5)) + 200 * np.array((5, 0, 3)) + 2000 * np.array((-1, 0.8, 1.5))) / 2250
-    assert np.allclose(f.c_m_sub[1], com), f"{f.c_m_sub[1]} != {com}"
+    assert np.allclose(crane.c_m_sub[1], com), f"{crane.c_m_sub[1]} != {com}"
     torque = 2250 * np.cross(com, (0, 0, -9.81))
-    assert np.allclose(f.torque, torque), f"{f.torque} != {torque}"
+    assert np.allclose(crane.torque, torque), f"{crane.torque} != {torque}"
 
     p.boom_setter((None, None, radians(-90)))  # turn p so that b1 south
     assert np.allclose(b1.direction, (0, -1, 0))
     assert np.allclose(b1.c_m, (0, -5, 0))
     crane.calc_statics_dynamics()
     com = (50 * np.array((0, -10, 2.5)) + 200 * np.array((0, -5, 3)) + 2000 * np.array((-1, 0.8, 1.5))) / 2250
-    assert np.allclose(f.c_m_sub[1], com), f"{f.c_m_sub[1]} != {com}"
+    assert np.allclose(crane.c_m_sub[1], com), f"{crane.c_m_sub[1]} != {com}"
     torque = 2250 * np.cross(com, (0, 0, -9.81))
-    assert np.allclose(f.torque, torque), f"{f.torque} != {torque}"
+    assert np.allclose(crane.torque, torque), f"{crane.torque} != {torque}"
     if show:
         show_crane(crane, markCOM=True, markSubCOM=False, title="test_rotation(). Pedestal turned => b1 south.")
 
@@ -656,16 +697,22 @@ def test_orientation(crane: Crane, show: int | bool = False):
     Note: roll, pitch, yaw is measured in vessel coordinate system (z down), while result is in crane system!
     """
 
-    def wire_end(x1: Sequence | np.ndarray, y0: Sequence | np.ndarray, length: float = 1.0):
+    def wire_end(x1: Sequence | np.ndarray, y0: Sequence | np.ndarray, length: float = 1.0, relaxed: bool = False):
+        if relaxed:
+            return y0
         diff = np.array(y0) - np.array(x1)
         return np.array(x1) + length * (diff) / np.linalg.norm(diff)
 
-    def crane_check(_p: Sequence, _b1: Sequence, _r: Sequence, show_it: int = 0, title: str = ""):
+    def crane_check(
+        _p: Sequence, _b1: Sequence, _r: Sequence, show_it: int = 0, title: str = "", relaxed: bool = False
+    ):
         """Check the end positions of all booms."""
         logger.info(f"test_orientation {title}")
         assert np.allclose(p.end, _p), f"Expected {_p}, found {p.end}"
         assert np.allclose(b1.end, _b1), f"Expected {_b1}, found {b1.end}"
-        assert np.allclose(r.end, wire_end(b1.end, _r, 1.0)), f"Expected {wire_end(b1.end, _r, 1.0)}"
+        assert np.allclose(r.end, wire_end(b1.end, _r, 1.0, relaxed), atol=1e-4), (
+            f"Expected {wire_end(b1.end, _r, 1.0, relaxed)}. Found {r.end}"
+        )
         if show & show_it >= show_it:
             show_crane(crane, True, False, title=title)
 
@@ -673,7 +720,7 @@ def test_orientation(crane: Crane, show: int | bool = False):
     r.boom_setter((1.0, None, None))  # wire 1m
     crane.rotate((0, 0, 0), absolute=False)  # zero turn
     crane_check((0, 0, 3), (10, 0, 3), (10, 0, 2), show_it=1, title="test_orientation(initial).")
-    angle = 90
+    angle = radians(90)
     # only roll
     crane.rotate((angle, 0, 0), absolute=True)  # roll 90 deg
     crane_check((0, -3, 0), (10, -3, 0), (10, 0, 2), show_it=2, title=f"test_orientation(roll({angle})).")
@@ -701,6 +748,13 @@ def test_orientation(crane: Crane, show: int | bool = False):
     crane.rotate((0, 0, angle), absolute=False)
     if show & 16 >= 16:
         show_crane(crane, True, False, title="roll, pitch, yaw successively")
+    logger.info("Stepping roll 90x1deg...")
+    crane.d_angular = np.array((np.radians(1), 0, 0), float)
+    for i in range(90):
+        crane.do_step(i, 1.0)
+    if show & 32 >= 32:
+        show_crane(crane, True, False, title="roll, pitch, yaw successively")
+    crane_check((-3, 0, 0), (-3, -10, 0), (-3, -10, -1), show_it=1, title="Crane stepped 90deg roll", relaxed=True)
 
 
 if __name__ == "__main__":
@@ -715,10 +769,10 @@ if __name__ == "__main__":
     c = _crane()
     # test_initial(c)
     # test_mass_center()
-    # test_orientation(_crane(), 16)
+    # test_orientation(_crane(), 32)
     # test_getter_setter(c)
     # test_pendulum(_crane(), show=True)
-    # test_sequence(c, True)
+    # test_sequence(c, False)
     # test_change_length(c, show=True)
     # test_rotation(c, show=True)
     # test_c_m(c, show=True)

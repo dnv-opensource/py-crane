@@ -3,7 +3,6 @@
    <BaseStepSize>0.01</BaseStepSize>
    <Algorithm>fixedStep</Algorithm>
    <Simulators>
-      <Simulator name="osc" source="HarmonicOscillator6D.fmu" stepSize="0.1">
-      </Simulator>
+      <Simulator name="osc" source="HarmonicOscillator6D.fmu" stepSize="0.01" />
    </Simulators>
 </OspSystemStructure>

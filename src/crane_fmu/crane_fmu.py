@@ -48,7 +48,8 @@ class CraneFMU(Model, Crane):
     ):
         """Initialize the crane object."""
         super().__init__(name=name, description=description, author=author, version=version, **kwargs)
-        Crane.__init__(self, to_crane_angle=None, degrees=degrees)
+        Crane.__init__(self, to_crane_angle=None)
+        self.degrees = degrees
         self.variable_naming = VariableNamingConvention.structured
         self.u_length = u_length
         self.u_time = u_time
@@ -58,7 +59,9 @@ class CraneFMU(Model, Crane):
             "Fixation point of the crane to its parent object or fixed ground. Pseudo-boom object",
             anchor0=None,
             mass="1e-10 kg",
+            mass_rng=None,
             boom=(1e-10, 0, 0),
+            boom_rng=(None, (), ()),
         )
         self._velocity = Variable(
             self,
@@ -76,14 +79,21 @@ class CraneFMU(Model, Crane):
             variability="continuous",
             start=("0.0",) * 3,
         )
+        _ = Variable(
+            self,
+            "angular",
+            "Crane angle as 3D Euler roll-pitch-yaw angle",
+            causality="input",
+            variability="continuous",
+            start=("0.0 deg",) * 3 if self.degrees else ("0.0 rad",) * 3,
+        )
         self._d_angular = Variable(
             self,
             "d_angular",
             "Crane change of angle per time unit (angular velocity) as 3D Euler roll-pitch-yaw angle",
             causality="input",
             variability="continuous",
-            start=("0.0",) * 3,
-            on_set=self.d_rot,
+            start=(f"0.0 deg/{u_time}",) * 3 if self.degrees else (f"0.0 rad/{u_time}",) * 3,
         )
         self._d2_angular = Variable(
             self,
@@ -91,8 +101,16 @@ class CraneFMU(Model, Crane):
             "Angualar acceleration of crane in rad/s**2:",
             causality="input",
             variability="continuous",
-            start="0.0 1/s**2",
+            start=(f"0.0 deg/{u_time}**2",) * 3 if self.degrees else (f"0.0 rad/{u_time}**2",) * 3,
             local_name="d2_angular",
+        )
+        self._torque = Variable(
+            self,
+            "torque",
+            "Crane change of position per time unit (speed) in 3D",
+            causality="output",
+            variability="continuous",
+            start=("0.0 N.m",) * 3,
         )
 
     def add_boom(self, *args, **kvargs):

@@ -124,6 +124,7 @@ class Boom(object):
         self.tolerance = tolerance
         self.direction: np.ndarray = np.array((0, 0, -1), float)  # default for non-fixed booms
         self.velocity: np.ndarray = np.array((0, 0, 0), float)
+        self.acceleration: np.ndarray = np.array((0, 0, 0), float)
         #    records the current velocity of the c_m, both with respect to angualar movement (e.g. torque from angular acceleration) and linear movement (e.g. wire)
         self.animationLW = animationLW
         self.origin: np.ndarray
@@ -149,25 +150,9 @@ class Boom(object):
             self._damping_time = 0.5 * sqrt(self.length * self.mass_center[0] / 9.81 * (self.q_factor**2 - 0.25))
         else:
             self._damping_time = 0.0
-        # do a total re-calculation of _c_m_sub and torque (static) for this boom (trivial) and the reverse connected booms
-        self.torque = np.array((0, 0, 0), float)
-        self.force = np.array((0, 0, 0), float)
 
         self.calc_statics_dynamics(dt=None)
-        logger.info(
-            "BOOM "
-            + self._name
-            + " EndPoints: "
-            + str(self.origin)
-            + ", "
-            + str(self.end)
-            + " dir, length, q_factor: "
-            + str(self.direction)
-            + ", "
-            + str(self.length)
-            + ", "
-            + str(self.q_factor)
-        )
+        logger.info(f"BOOM {self._name} {self.origin}->{self.end}. |{self.length} | {self.direction} | {self.q_factor}")
 
     def __getitem__(self, idx: int | str):
         """Facilitate subscripting booms. 'idx' denotes the connected boom with respect to self.
@@ -188,7 +173,8 @@ class Boom(object):
         elif idx >= 0:
             for _ in range(idx):
                 if b.anchor1 is None:
-                    raise IndexError("Erroneous index " + str(idx) + " with respect to boom " + self.name)
+                    logger.critical(f"Erroneous index {idx} with respect to boom {self.name}")
+                    raise IndexError(f"Erroneous index {idx} with respect to boom {self.name}")
                 b = b.anchor1
             return b
         else:
@@ -196,7 +182,8 @@ class Boom(object):
                 b = b.anchor1
             for _ in range(abs(idx) - 1):  # go back from tail
                 if b.anchor0 is None:
-                    raise IndexError("Erroneous index " + str(idx) + " with respect to boom " + self.name)
+                    logger.critical(f"Erroneous index {idx} with respect to boom {self.name}")
+                    raise IndexError(f"Erroneous index {idx} with respect to boom {self.name}")
                 b = b.anchor0
             return b
 
@@ -236,9 +223,10 @@ class Boom(object):
                     self.boom[i] = v
         if Change.ROT in Change(ch):  # direction change
             assert self.q_factor == 0, "Attempt to directly set the angle of a wire. Does not make sense"
-            self._rot = (
-                self.model.rot() if self.anchor0 is None else self.anchor0.rot() * rot_from_spherical(self.boom[1:])
-            )
+            if self.anchor0 is None:
+                self._rot = self.model.rot()
+            else:
+                self._rot = self.anchor0.rot() * rot_from_spherical(self.boom[1:])
             self.direction = self._rot.apply(np.array((0, 0, 1), float))
         if self.anchor1 is not None:
             self.anchor1.update_child(change=Change(ch))
@@ -264,7 +252,7 @@ class Boom(object):
     def c_m(self):
         """Updates and returns the local center of mass point relative to self.origin."""
         self._c_m = self.mass_center[0] * self.length * self.direction + np.array(
-            (self.mass_center[1], self.mass_center[2], 0)
+            (self.mass_center[1], self.mass_center[2], 0), float
         )
         return self._c_m
 
@@ -311,6 +299,7 @@ class Boom(object):
         if self.q_factor == 0 or approx:
             self.direction = self._rot.apply(np.array((0, 0, 1), float))
         logger.debug(f"New direction {self.name}, dir:{self.direction}, origin:{self.origin}, end:{self.end}")
+
         if self.anchor1 is not None:
             self.anchor1.update_child(change)
 
@@ -323,19 +312,40 @@ class Boom(object):
             if self.anchor1 is not None:
                 self.anchor1.translate(vec, cnt + 1)
 
+    @property
+    def torque(self):
+        """Calculate the torque from the CoM of this boom with respect to the fixation.
+        Note that this is in practice only calculated for the load and the rest of the crane.
+        These two are calculated separately, since the load exhibits a pendulum action.
+        """
+        if self.q_factor > 0:  # pendulum action
+            return self.mass * np.cross(
+                self._c_m_sub[1],
+                (np.array((0, 0, -9.81), float) + self.velocity**2 * self.direction + self.acceleration),
+            )
+        else:  # other fixed boom. Calculate including all children, but load. Assume self._c_m_sub updated
+            m, c_m_sub = self._c_m_sub
+            return m * np.cross(c_m_sub, (np.array((0, 0, -9.81), float) + self.acceleration))
+
+    @property
+    def force(self):
+        """Calculate the force resulting from linear acceleration."""
+        return self._c_m_sub[0] * self.acceleration
+
     def calc_statics_dynamics(self, dt: float | None = None):
         """After any movement the local c_m and the c_m of connected booms have changed.
         Thus, after the movement has been transmitted to connected booms, the _c_m_sub of all booms can be updated in reverse order.
         The local _c_m_sub is updated by calling this function, assuming that child booms are updated.
-        While updating, also the velocity, the torque (with respect to origin) and the linear force are calculated.
+        While updating, also the velocity is updated.
         Since there might happen multiple movements within a time interval, the function must be called explicitly, i.e. from crane.
+        Note that c_m_sub included all child booms, but the wire (as this can swing).
 
         Args:
             dt (float)=None: for dynamic calculations, the time for the movement must be provided
               and is then used to calculate velocity, acceleration, torque and force
         """
         c_m_sub1 = self._c_m_sub[1]  # make a copy
-        if self.anchor1 is None:  # there are no attached booms
+        if self.anchor1 is None or self.anchor1.anchor1 is None:  # there are no attached booms or attached wire
             # assuming that _c_m is updated. Note that _c_m_sub is a global vector
             self._c_m_sub = (self.mass, self.origin + self._c_m)
         else:  # there are attached boom(s)
@@ -345,23 +355,17 @@ class Boom(object):
             cs = self.origin + self.c_m  # the local center of mass as absolute position
             # updated _c_m_sub as absolute position
             self._c_m_sub = (mS + m, (cs * m + mS * posS) / (mS + m))
-        self.torque = self._c_m_sub[0] * np.cross(self._c_m_sub[1], np.array((0, 0, -9.81)))  # static torque
+
         if dt is not None:  # the time for the movement is provided (dynamic analysis)
-            velocity0 = np.array(self.velocity)
+            velocity0 = np.array(self.velocity, float)
             # check for pendulum movements and implement for this time interval if relevant
             self.velocity, acceleration = self._pendulum(dt)
             if isnan(self.velocity[0]):  # not yet initialized. Note np translates None to nan!
                 # there was no pendulum movement and the velocity has thus not been calculated. Calculate from _c_m_sub
                 self.velocity = (self._c_m_sub[1] - c_m_sub1) / dt
-                acceleration = (self.velocity - velocity0) / dt
+                self.acceleration = (self.velocity - velocity0) / dt
             assert np.linalg.norm(self.velocity) < 1e50, f"Very high velocity {self.velocity}. Check time intervals!"
-            self.torque += self._c_m_sub[0] * np.cross(self._c_m_sub[1], acceleration)  # type: ignore ## np issue
-            # linear force due to acceleration in boom direction
-            self.force = self._c_m_sub[0] * np.dot(self.direction, acceleration) * self.direction  # type: ignore ## np
 
-        # Ensure that links between variable values on Boom level and model level are maintained:
-        # setattr( self._model, self._torque.local_name, self.torque)
-        # setattr( self._model, self._force.local_name, self.force)
         if self.anchor0 is not None:
             self.anchor0.calc_statics_dynamics(dt)
 

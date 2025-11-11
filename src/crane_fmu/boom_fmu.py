@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from component_model.model import Model
 
-from crane_fmu.boom import Boom, BoomInitError
+from crane_fmu.boom import Boom
 
 # from crane_fmu.crane import Crane
 
@@ -132,26 +132,35 @@ class BoomFMU(Boom):
         )
         if not len(self._mass.unit):
             logger.warning(f"Warning: Missing unit for mass of boom {self._name}. Include in the 'mass' parameter")
+        mass0 = self._mass.getter()[0]
+        assert isinstance(mass0, float)
 
         assert isinstance(boom, (tuple, list, np.ndarray)), f"boom {self.name} invalid 3D start value. Found {boom}"
-        if boom[0] == 0:
-            boom = (f"0 {u_length}", *boom[1:])
+        _boom = list(boom)  # make it changeable
+        if _boom[0] == 0:
+            _boom[0] = f"0 {u_length}"
         for i in range(1, 3):
-            if boom[i] == 0:
-                boom = (*boom[:i], "0" + u_angle, *boom[i + 1 :])
-            elif not isinstance(boom[i], str) or u_angle not in boom[i]:
-                raise BoomInitError(f"All angles shall be provided as {u_angle}")
+            if _boom[i] == 0:
+                _boom[i] = "0" + u_angle
+            elif not isinstance(_boom[i], str) or u_angle not in _boom[i]:
+                logger.error(f"All angles shall be provided as {u_angle}")
+                _boom[i] = f"{_boom[i]}{u_angle}"
+        for i in range(1, 2):
+            assert (
+                boom_rng is None
+                or boom_rng[i] is None
+                or not len(boom_rng[i])
+                or (boom_rng[i][0] > float("-inf") and boom_rng[i][1] < float("inf"))
+            ), f"The range of {self.name}[{i}] should not be limited, as radian variables are periodic"
         self._boom = model.add_variable(
             f"{name}.boom",
             description=f"Length [m] and direction [rad] of {name} from anchor point in spherical coordinates",
             causality="input",
             variability="continuous",
-            start=boom,
+            start=_boom,
             rng=boom_rng,
             on_set=self.boom_setter,
         )
-        mass0 = self._mass.getter()[0]
-        assert isinstance(mass0, float)
 
         super().__init__(
             model,
@@ -160,7 +169,7 @@ class BoomFMU(Boom):
             anchor0,
             mass=mass0,
             mass_center=mass_center,  # this could be made an interface variable in advanced cranes
-            boom=self._boom.getter(),
+            boom=getattr(self._boom.owner, self._boom.local_name),  #! not getter()! boom.py uses internal variables!
             damping=damping,
             animationLW=animationLW,
         )
@@ -172,24 +181,6 @@ class BoomFMU(Boom):
             variability="continuous",
             start=self.end,
         )
-        self._torque = model.add_variable(
-            f"{name}.torque",
-            description="""Torque contribution of the boom with respect to its origin,
-                         i.e. the sum of static and dynamic torques. Provided as 3D cartesian vector""",
-            causality="output",
-            variability="continuous",
-            initial="exact",
-            start=self.torque,
-        )
-        self._force = model.add_variable(
-            f"{name}.force",
-            description="""Total linear force of the crane with respect to its base,
-                        i.e. the sum of static and dynamic forces. Provided as 3D cartesian vector)""",
-            causality="output",
-            variability="continuous",
-            initial="exact",
-            start=self.force,
-        )
         # additional derivative variables (but not for fixation, as these are Euler movements on the crane!)
         if self.name != "fixation":
             self._der1_boom = model.add_variable(
@@ -197,14 +188,14 @@ class BoomFMU(Boom):
                 description="Continuous change to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
                 causality="input",
                 variability="continuous",
-                start=(f"0 m/{u_time}", f"0 deg/{u_time}", f"0 deg/{u_time}"),
+                start=(f"0 m/{u_time}", f"0 {u_angle}/{u_time}", f"0 {u_angle}/{u_time}"),
             )
             self._der2_boom = model.add_variable(
                 f"der(der({name}.boom))",
                 description="Acceleration to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
                 causality="input",
                 variability="continuous",
-                start=(f"0 m/{u_time}**2", f"0 deg/{u_time}**2", f"0 deg/{u_time}**2"),
+                start=(f"0 m/{u_time}**2", f"0 {u_angle}/{u_time}**2", f"0 {u_angle}/{u_time}**2"),
             )
             if self._mass.range[0][0] != self._mass.range[0][1]:  # mass is changeable (normally the load)
                 self._der1_mass = model.add_variable(

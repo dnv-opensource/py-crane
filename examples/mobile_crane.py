@@ -26,11 +26,14 @@ class MobileCrane(CraneFMU):
         version: str = "0.3",
         degrees: bool = True,
         pedestalMass: str = "10000.0 kg",
+        pedestalCoM: tuple = (0.5, -1.0, 0.8),
         pedestalHeight: str = "3.0 m",
         boomMass: str = "1000.0 kg",
         boomLength0: str = "8 m",
         boomLength1: str = "50 m",
+        boomAngle: str = "90deg",
         wire_mass_range: tuple = ("50kg", "2000 kg"),
+        wire_length: float = 1e-6,
         **kwargs,
     ):
         super().__init__(name=name, description=description, author=author, version=version, degrees=degrees, **kwargs)
@@ -38,33 +41,30 @@ class MobileCrane(CraneFMU):
             name="pedestal",
             description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
             mass=pedestalMass,
-            mass_center=(0.5, -1.0, 0.8),
+            mass_center=pedestalCoM,
             boom=(pedestalHeight, "0deg", "0deg"),
-            boom_rng=(None, None, ("0deg", "360deg")),
+            boom_rng=(None, None, ()),
         )
         _boom = self.add_boom(
             name="boom",
             description="The boom. Can be lifted and length can change within the given range",
             mass=boomMass,
             mass_center=(0.5, 0, 0),
-            boom=(boomLength0, "90deg", "0deg"),
-            boom_rng=((boomLength0, boomLength1), (0, "90deg"), None),
+            boom=(boomLength0, boomAngle, "0deg"),
+            boom_rng=((boomLength0, boomLength1), (), None),
         )
         _ = self.add_boom(
             name="wire",
             description="The wire fixed to the last boom. Flexible connection",
             mass="50.0 kg",  # so far basically the hook
-            mass_center=0.95,
+            mass_center=0.99,
             mass_rng=wire_mass_range,
-            boom=("1e-6 m", "180deg", "0 deg"),
-            boom_rng=(
-                ("1e-6 m", boomLength1),
-                ("90deg", "270deg"),
-                ("-180deg", "180deg"),
-            ),
+            boom=(f"{wire_length}m", "180deg", "0 deg"),
+            boom_rng=(("1e-6 m", boomLength1), (), ()),
             damping=50.0,
             animationLW=2,
         )
+
         # make sure that _comSub is calculated for all booms:
         self.calc_statics_dynamics(None)
 
