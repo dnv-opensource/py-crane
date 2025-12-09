@@ -5,6 +5,19 @@ from shutil import rmtree
 
 import pytest
 
+@pytest.fixture(scope="session")
+def mobile_crane_fmu():
+    """Make the (updated) MobileCrane.fmu available for all tests."""
+    from component_model.model import Model
+
+    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
+    build_path.mkdir(exist_ok=True)
+    fmu_path = Model.build(  # MobileCrane.build(
+        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
+        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
+        dest=build_path,
+    )
+    return fmu_path
 
 @pytest.fixture(scope="package", autouse=True)
 def chdir() -> None:

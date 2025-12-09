@@ -47,20 +47,18 @@ allow-direct-references = true
         "component-model>=0.0.2",
         "pythonfmu>=0.6.7",
         "numpy>=1.24.2",
+        "scipy>=1.15.1",
 ]
     #dynamic = ["version"]
 
 
 [project.optional-dependencies]
     rest = ["docutils>=0.3"]
-    dev = ["pytest>=8.2","ruff>=0.4.2","mypy>=1.8.0","Sphinx>=7.3","sphinx-argparse-cli>=1.15","myst-parser>=3.0",
-           "furo>=2024.4"]
     test = ["FMPy>=0.3.21",
             "matplotlib>=3.10.7",
             "plotly>=6.0.1",
-            "libcosimpy@git+https://github.com/open-simulation-platform/libcosimpy@cosimc-loading-fix",
-            #"libcosimpy >= 0.0.3.post1",
-]
+            "libcosimpy >= 0.0.5",
+    ]
 
 [tool.uv]
 dev-dependencies = [

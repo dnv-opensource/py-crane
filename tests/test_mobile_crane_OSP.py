@@ -205,5 +205,6 @@ def test_mobilecrane(mobile_crane_fmu: Path):
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    # test_from_osp( _mobile_crane_fmu())
-    # test_mobilecrane(_mobile_crane_fmu())
+    crane = _mobile_crane_fmu()
+    # test_from_osp( crane)
+    # test_mobilecrane( crane)

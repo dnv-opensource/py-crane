@@ -5,7 +5,7 @@ from typing import Any, Callable, Generator, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
-from component_model.variable import cartesian_to_spherical
+from component_model.utils.transform import cartesian_to_spherical
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from scipy.spatial.transform import Rotation as Rot
@@ -53,10 +53,10 @@ class Crane(object):
     * forces and torque are only calculated in relation to the fixation (the whole crane),
       not in ralation to moving joints.
 
-      Args:
-          to_crane_angle (Callable) = None: Optional possibility to specify a non-default transformation
-             from vessel Euler angles to crane coordinate system. Default: (north-east-down as r-p-y + north-west-up)
-             Should be a function of an Euler angle, corresponding also to the choice of 'degrees'.
+    Args:
+        to_crane_angle (Callable) = None: Optional possibility to specify a non-default transformation
+          from vessel Euler angles to crane coordinate system. Default: (north-east-down as r-p-y + north-west-up)
+          Should be a function of an Euler angle, corresponding also to the choice of 'degrees'.
     """
 
     to_crane_angle: Callable
@@ -66,14 +66,12 @@ class Crane(object):
         self.to_crane_angle: Callable = self.to_crane_angle_default  # args: (angle, degrees:bool = False)
         if to_crane_angle is not None:  # non-default transformation function
             self.to_crane_angle = to_crane_angle
-        self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # placeholder for current rotations (roll,pitch,yaw) of crane
-        self._angular = np.array((0.0, 0.0, 0.0), float)  # placeholder for current angle as (roll,pitch,yaw)
-        self.d_angular = np.array((0.0, 0.0, 0.0), float)  # placeholder for current angular speed as (roll,pitch,yaw)
-        self.d2_angular = np.array(
-            (0.0, 0.0, 0.0), float
-        )  # placeholder for current angular acceleration as (roll,pitch,yaw)
+        self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # current rotations (roll,pitch,yaw) of crane
+        self._angular = np.array((0.0, 0.0, 0.0), float)  # current angle as (roll,pitch,yaw)
+        self._d_angular = np.array((0.0, 0.0, 0.0), float)  # current angular speed as (roll,pitch,yaw)
+        self.d2_angular = np.array((0.0, 0.0, 0.0), float)  # current angular acceleration as (roll,pitch,yaw)
         self._position = np.array((0.0, 0.0, 0.0), float)
-        self.velocity = np.array((0.0, 0.0, 0.0), float)
+        self._velocity = np.array((0.0, 0.0, 0.0), float)
         self.d_velocity = np.array((0.0, 0.0, 0.0), float)
         self._boom0 = Boom(
             self,
@@ -134,9 +132,20 @@ class Crane(object):
 
     @position.setter
     def position(self, newval: np.ndarray):
+        """Instantaneous movement of the crane. Not meant for dynamical analysis. Use d_velocity for that."""
         self._position = newval
         self.boom0.origin = newval
         self.boom0.update_child(change=Change.POS)
+
+    @property
+    def velocity(self) -> np.ndarray:
+        return self._velocity
+
+    @velocity.setter
+    def velocity(self, newval: np.ndarray):
+        """Instantaneous change of crane velocity. Not meant for dynamical analysis. Use d_velocity for that."""
+        self._velocity = newval
+
 
     @property
     def angular(self) -> np.ndarray:
@@ -145,10 +154,23 @@ class Crane(object):
 
     @angular.setter
     def angular(self, newval: np.ndarray):
-        """Set a new absolute euler angle of the crane and store internally as Rot."""
+        """Instantaneous change of euler angle of the crane. Stored internally as Rot.
+        Not meant for dynamical analysis. Use d2_angular for that.
+        """
         self.rotate(newval, absolute=True)
         self._angular = newval  # remember, so that we can retrieve it. The orientation itself is in _rot
 
+    @property
+    def d_angular(self) -> np.ndarray:
+        """Get the current angular velocity (euler angles)."""
+        return self._d_angular
+
+    @d_angular.setter
+    def d_angular(self, newval: np.ndarray):
+        """Instantaneeous change of angular valocity. Not menat for dynamical analysis. Use d2_angular for that."""
+        self._d_angular = newval
+        
+        
     def rot(self, rpy: Sequence | np.ndarray | None = None):
         """Get/Set a new absolute rotation through an Euler angle."""
         if rpy is not None:  # set a new value
@@ -203,11 +225,12 @@ class Crane(object):
         # after the boom properties are updated, we can calculate the crane forces and torques
         self.torque = self.boom0.torque + self.boom_.torque
         self.force = self.boom0.force + self.boom_.force
+        #print(f"dt:{dt}. Force: {self.force}, torque: {self.torque}, v:{self._velocity}, a:{self.boom0.acceleration}")
 
     #         if dt is not None:
-    #             self.velocity = (c_m_sub - c_m_sub1) / dt
-    #             acceleration = (self.velocity - velocity0) / dt
-    #                 assert np.linalg.norm(self.velocity) < 1e50, f"Very high velocity {self.velocity}. Check time intervals!"
+    #             self._velocity = (c_m_sub - c_m_sub1) / dt
+    #             acceleration = (self._velocity - velocity0) / dt
+    #                 assert np.linalg.norm(self._velocity) < 1e50, f"Very high velocity {self._velocity}. Check time intervals!"
     #                 if self.model.calc_boom_forces_torques:
     #                     self.torque += m * np.cross(c_m_sub, acceleration)  # type: ignore ## np issue
     #                     # linear force due to acceleration in boom direction
@@ -216,127 +239,17 @@ class Crane(object):
     def do_step(self, current_time: float, step_size: float) -> bool:
         """Do a simulation step of size `dt` at `time` ."""
         if any(acc != 0 for acc in self.d_velocity):  # linear acceleration ongoing
-            self.velocity += self.d_velocity * step_size
-        if any(v != 0 for v in self.velocity):  # position change ongoing
-            self.position += self.velocity * step_size  # Note: changes also origin of fixture and all children
+            self._velocity += self.d_velocity * step_size
+        if any(v != 0 for v in self._velocity):  # position change ongoing
+            self.position += self._velocity * step_size  # Note: changes also origin of fixture and all children
         # orientation changes...
         if not np.allclose(self.d2_angular, (0.0, 0.0, 0.0)):
-            self.d_angular += step_size * self.d2_angular
-        if not np.allclose(self.d_angular, (0.0, 0.0, 0.0)):
-            self.rotate(self.d_angular * step_size, absolute=False)  # Note: changes also rot, ... and all children
+            self._d_angular += step_size * self.d2_angular
+        if not np.allclose(self._d_angular, (0.0, 0.0, 0.0)):
+            self.rotate(self._d_angular * step_size, absolute=False)  # Note: changes also rot, ... and all children
 
         # after all changed input variables are taken into account, update the statics and dynamics of the system
         self.calc_statics_dynamics(step_size)
         # res = "".join( x.name+":"+str(x.end) for x in self.booms())
         logger.debug(f"Crane step {current_time} done. torque:{self.boom0.torque}")
         return True
-
-
-class Animation:
-    """Animation of the crane via matplotlib.
-    Due to issues with multiple CPU processes, this can currently not be used in conjunction with OSP.
-
-    Args:
-        crane (Crane): a reference to the crane which shall be animated
-        elements (dict)={}: a dict of visual elements to include in the animation.
-          Each dictionary element is represented by an empty list which is filled by the element references during init,
-          so that their position, ... can be changed during the animation
-        interval (float)=0.1: waiting interval between simulation steps in s
-        viewAngle (tuple)=(20,45,0): Optional change of initial view angle as (elevation, azimuth, roll) (in degrees)
-    """
-
-    def __init__(
-        self,
-        crane: Crane,
-        elements: dict[str, list] | None = None,
-        interval: float = 0.1,
-        figsize: tuple[float, float] = (9, 9),
-        xlim: tuple[float, float] = (-10, 10),
-        ylim: tuple[float, float] = (-10, 10),
-        zlim: tuple[float, float] = (0, 10),
-        viewAngle: tuple[float, float, float] = (20, 45, 0),
-    ):
-        """Perform the needed initializations of an animation."""
-        self.crane: Crane = crane
-        self.elements: dict[str, Any] | None = elements
-        self.interval: float = interval
-
-        _ = plt.ion()  # run the GUI event loop
-        self.fig: Figure = plt.figure(figsize=figsize, layout="constrained")
-        ax: Axes3D = Axes3D(fig=self.fig)
-        #        ax = plt.axes(projection="3d")
-        ax.set_xlim(*xlim)
-        ax.set_ylim(*ylim)
-        ax.set_zlim(*zlim)
-        ax.view_init(elev=viewAngle[0], azim=viewAngle[1], roll=viewAngle[2])
-        sub: list[list] = [[], [], []]
-        if isinstance(self.elements, dict):
-            for b in self.crane.booms():  # walk along the series of booms
-                if "booms" in self.elements:  # draw booms
-                    self.elements["booms"].append(
-                        ax.plot(
-                            [b.origin[0], b.end[0]],
-                            [b.origin[1], b.end[1]],
-                            [b.origin[2], b.end[2]],
-                            linewidth=b.animationLW,
-                        )
-                    )
-                if "c_m" in self.elements:  # write mass of boom as string on center of mass point
-                    self.elements["c_m"].append(
-                        ax.text(
-                            b.c_m[0],
-                            b.c_m[1],
-                            b.c_m[2],
-                            s=str(int(b.mass.start)),  # type: ignore ## pyright confusion about 3D plots
-                            color="black",
-                        )
-                    )
-                if "c_m_sub" in self.elements:
-                    for i in range(3):
-                        sub[i].append(b.c_m_sub[1][i])
-            if "c_m_sub" in self.elements and len(sub[0]):
-                self.elements["c_m_sub"].append(
-                    ax.plot(sub[0], sub[1], sub[2], marker="*", color="red", linestyle="")
-                )  # need to put them in as plot and not scatter3d, such that coordinates can be changed in a good way
-            if "current_time" in self.elements:
-                self.elements["current_time"].append(
-                    ax.text(
-                        ax.get_xlim()[0],
-                        ax.get_ylim()[0],
-                        ax.get_zlim()[0],
-                        s="time=0",
-                        color="blue",
-                    )
-                )
-
-    def update(self, current_time=None):
-        """Based on the updated crane, update data as defined in elements."""
-        sub: list[list] = [[], [], []]
-        assert isinstance(self.elements, dict), "elements dict required at this stage"
-        for i, b in enumerate(self.crane.booms()):
-            if "booms" in self.elements:
-                assert self.elements["booms"] is not None
-                self.elements["booms"][i][0].set_data_3d(
-                    [b.origin[0], b.end[0]],
-                    [b.origin[1], b.end[1]],
-                    [b.origin[2], b.end[2]],
-                )
-            if "c_m" in self.elements:
-                assert self.elements["c_m"] is not None
-                self.elements["c_m"][i].set_x(b.c_m_sub[1][0])
-                self.elements["c_m"][i].set_y(b.c_m_sub[1][1])
-                self.elements["c_m"][i].set_z(b.c_m_sub[1][2])
-            if "c_m_sub" in self.elements:
-                for i in range(3):
-                    sub[i].append(b.c_m_sub[1][i])
-        if "c_m_sub" in self.elements and len(sub[0]):
-            self.elements["c_m_sub"][0][0].set_data_3d(sub[0], sub[1], sub[2])
-        if "current_time" in self.elements and current_time is not None:
-            self.elements["current_time"][0].set_text("time=" + str(round(current_time, 1)))
-
-        self.fig.canvas.draw_idle()  # drawing updated values
-        self.fig.canvas.flush_events()  # This will run the GUI event loop until all UI events currently waiting have been processed
-        # time.sleep( self.interval)
-
-    def interactive_off(self):
-        plt.ioff()

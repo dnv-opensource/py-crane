@@ -60,11 +60,6 @@ def test_mass_center():
     )
 
 
-@pytest.fixture(scope="session")
-def mobile_crane_fmu():
-    return _mobile_crane_fmu()
-
-
 def _mobile_crane_fmu():
     from component_model.model import Model
 
@@ -244,8 +239,9 @@ def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
 if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
+    crane = _mobile_crane_fmu()
     # test_mass_center()
-    # test_mobilecrane_fmu( _mobile_crane_fmu(), show=True)
-    # test_run_mobilecrane_static(_mobile_crane_fmu(), show=True)
-    # test_run_mobilecrane_move(_mobile_crane_fmu(), show=True)
+    # test_mobilecrane_fmu( crane, show=True)
+    # test_run_mobilecrane_static( crane, show=True)
+    # test_run_mobilecrane_move( crane, show=True)
     # test_fmu()
