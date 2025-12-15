@@ -5,6 +5,7 @@ from shutil import rmtree
 
 import pytest
 
+
 @pytest.fixture(scope="session")
 def mobile_crane_fmu():
     """Make the (updated) MobileCrane.fmu available for all tests."""
@@ -18,6 +19,7 @@ def mobile_crane_fmu():
         dest=build_path,
     )
     return fmu_path
+
 
 @pytest.fixture(scope="package", autouse=True)
 def chdir() -> None:
@@ -90,4 +92,4 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def show(request):
-    return request.config.getoption("--show") == "True"
+    return request.config.getoption("--show") == "False"

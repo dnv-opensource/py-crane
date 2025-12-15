@@ -87,6 +87,7 @@ def test_mobilecrane_fmu(mobile_crane_fmu, show: bool = False):
 
 def test_fmu():
     """Test the FMU object itself."""
+    sys.path.insert(0, str((Path(__file__).parent.parent).absolute()))
     from examples.mobile_crane import MobileCrane
 
     def test_vals(v: Variable, k: int, val, rng, typ: type) -> tuple:
@@ -240,8 +241,8 @@ if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     crane = _mobile_crane_fmu()
+    # test_fmu()
     # test_mass_center()
     # test_mobilecrane_fmu( crane, show=True)
     # test_run_mobilecrane_static( crane, show=True)
     # test_run_mobilecrane_move( crane, show=True)
-    # test_fmu()

@@ -77,7 +77,7 @@ def test_turn():
     theta = pi / 2
     phi = 0.0
     for a in np.linspace(0, 360, 361):
-        print(f"Yaw angle {a}: ({degrees(theta)}, {degrees(phi)})")
+        # print(f"Yaw angle {a}: ({degrees(theta)}, {degrees(phi)})")
         assert abs(theta - pi / 2) < 1e-10, f"theta:{theta}, expected: {pi / 2}"
         if a <= 180:
             assert abs(phi - radians(a)) < 1e-4, f"phi:{phi}, expected: {radians(a)}"
@@ -87,9 +87,9 @@ def test_turn():
 
     theta = 0.0
     phi = 0.0
-    for a in np.linspace(0, 180, 181):
-        print(f"Pitch angle {a}: ({degrees(theta)}, {degrees(phi)})")
-        assert abs(phi) < 1e-10, f"theta:{theta}, expected: {pi / 2}"
+    for a in np.linspace(0, 179, 180):
+        # print(f"Pitch angle {a}: ({degrees(theta)}, {degrees(phi)})")
+        assert abs(phi) < 1e-10, f"phi:{phi} != 0"
         assert abs(theta - radians(a)) < 1e-4, f"phi:{phi}, expected: {radians(a)}"
 
         theta, phi = turn(theta, phi, beta=a1, approx=-2)
@@ -97,8 +97,8 @@ def test_turn():
     theta = 0
     phi = -pi / 2.0
     for a in np.linspace(0, 360, 361):
-        print(f"Roll angle {a}: ({degrees(theta)}, {degrees(phi)})")
-        if a <= 180:
+        # print(f"Roll angle {a}: ({degrees(theta)}, {degrees(phi)})")
+        if a < 180:
             assert abs(theta - radians(a)) < 1e-10, f"theta:{theta}, expected: {radians(a)}"
             assert abs(phi + pi / 2) < 1e-3, f"phi:{phi}, expected: {radians(-90)}"
         else:

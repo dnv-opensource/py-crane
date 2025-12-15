@@ -63,7 +63,7 @@ class CraneFMU(Model, Crane):
             boom=(1e-10, 0, 0),
             boom_rng=(None, (), ()),
         )
-        self._velocity = Variable(
+        _ = Variable(
             self,
             "velocity",
             "Crane change of position per time unit (speed) in 3D",
@@ -87,7 +87,7 @@ class CraneFMU(Model, Crane):
             variability="continuous",
             start=("0.0 deg",) * 3 if self.degrees else ("0.0 rad",) * 3,
         )
-        self._d_angular = Variable(
+        _ = Variable(
             self,
             "d_angular",
             "Crane change of angle per time unit (angular velocity) as 3D Euler roll-pitch-yaw angle",

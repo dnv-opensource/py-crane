@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Generator, Sequence
+from typing import Callable, Generator, Sequence
 
-import matplotlib.pyplot as plt
 import numpy as np
 from component_model.utils.transform import cartesian_to_spherical
-from matplotlib.figure import Figure
-from mpl_toolkits.mplot3d.axes3d import Axes3D
 from scipy.spatial.transform import Rotation as Rot
 
 from crane_fmu.boom import Boom
@@ -146,7 +143,6 @@ class Crane(object):
         """Instantaneous change of crane velocity. Not meant for dynamical analysis. Use d_velocity for that."""
         self._velocity = newval
 
-
     @property
     def angular(self) -> np.ndarray:
         """Get the current euler angle of the crane (internally stored as Rot)."""
@@ -169,8 +165,7 @@ class Crane(object):
     def d_angular(self, newval: np.ndarray):
         """Instantaneeous change of angular valocity. Not menat for dynamical analysis. Use d2_angular for that."""
         self._d_angular = newval
-        
-        
+
     def rot(self, rpy: Sequence | np.ndarray | None = None):
         """Get/Set a new absolute rotation through an Euler angle."""
         if rpy is not None:  # set a new value
@@ -225,7 +220,7 @@ class Crane(object):
         # after the boom properties are updated, we can calculate the crane forces and torques
         self.torque = self.boom0.torque + self.boom_.torque
         self.force = self.boom0.force + self.boom_.force
-        #print(f"dt:{dt}. Force: {self.force}, torque: {self.torque}, v:{self._velocity}, a:{self.boom0.acceleration}")
+        # print(f"dt:{dt}. Force: {self.force}, torque: {self.torque}, v:{self._velocity}, a:{self.boom0.acceleration}")
 
     #         if dt is not None:
     #             self._velocity = (c_m_sub - c_m_sub1) / dt
