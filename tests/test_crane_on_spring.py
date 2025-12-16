@@ -137,13 +137,13 @@ def test_crane_on_spring(show: bool = False):
             break
     assert cm_path is not None, "Path to component-model package not found. Needed for OscillatorXD."
     sys.path.insert(0, str(Path(cm_path) / "examples"))
-    from oscillator_xd import Force, OscillatorXD
+    from oscillator_xd import Force, OscillatorXD  # type: ignore  ## it works for pytest!
 
     sys.path.insert(
-        0, str(Path(__file__).parent.parent / "examples" / "mobile_crane.py")
+        0, str(Path(__file__).parent.parent / "examples")
     )  # need to overwrite. 'examples' twice
     assert Path(sys.path[0]).exists()
-    from mobile_crane import MobileCrane
+    from mobile_crane import MobileCrane  # type: ignore  ## it works for pytest!
 
     def _force(t: float, x: np.ndarray, v: np.ndarray, crane: Any, dt: float | None = None):
         """Calculate the force that the crane exhibits on the oscillator,

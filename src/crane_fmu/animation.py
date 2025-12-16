@@ -31,8 +31,9 @@ class AnimateCrane(object):
         dt: float = 0.1,
         end_time: float = 10.0,
         figsize: tuple[int, int] = (8, 8),
-        axes_lim: tuple[tuple[int, int]] = ((-10, 10), (-10, 10), (0, 10)),
+        axes_lim: tuple[tuple[int, int],...] = ((-10, 10), (-10, 10), (0, 10)),
         interval: int = 200,
+        repeat: bool = False,
         title: str = "Crane animation",
     ):
         self.crane = crane
@@ -42,6 +43,7 @@ class AnimateCrane(object):
         self.figsize = figsize
         self.axes_lim = axes_lim
         self.interval = interval
+        self.repeat = repeat
         self.title = title
         self.lines: list = []
         self.fig = plt.figure(figsize=self.figsize, layout=None)  # "constrained")
@@ -77,13 +79,19 @@ class AnimateCrane(object):
         plt.title(f"{self.title} ({time:.1f})", loc="left")
 
     def do_animation(self):
+        """Do the animation. It generates frames and updates the animation plot."""
         _ = FuncAnimation(
             self.fig,
             self.update,  # type: ignore  ## this is a function!
-            frames=self.frame_gen(self.crane, dt=self.dt, t_end=self.end_time),  # yields crane object as frame
+            frames=self.frame_gen(self.crane, dt=self.dt, t_end=self.end_time),  # type: ignore
             init_func=self.init_fig,  # type: ignore  ## this is a function!
             interval=self.interval,
+            repeat=self.repeat,
             blit=False,
             cache_frame_data=False,
         )
         plt.show()
+
+    def close(self):
+        """Close the animation."""
+        plt.close(self.fig)

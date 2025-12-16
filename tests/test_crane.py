@@ -630,7 +630,6 @@ def movement(crane, dt: float = 0.01, t_end: float = 10.0):
     controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
     controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
     f, p, b1, r = list(crane.booms())
-    time = 0.0
     controls.current[2][0] = 8.0  # b1 starts with 8m
     controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
     controls.current[3][0] = 0.5  # wire length starts 0.5m
@@ -639,28 +638,24 @@ def movement(crane, dt: float = 0.01, t_end: float = 10.0):
     controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
     controls.setgoal("luff", 0, radians(45), 0.0)  # luff boom to 45 deg
     controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
-    while True:
-        if time < t_end:
-            if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
-                controls.setgoal("wire", 1, 1.0, 10.0)
-            controls.step(time, dt)
-            if controls.goals[3] is not None:
-                r.boom_setter((controls.current[3][0], None, None))
-            if controls.goals[1] is not None or controls.goals[2] is not None:
-                b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
-            if controls.goals[0] is not None:
-                p.boom_setter((None, None, controls.current[0][0]))
-            crane.do_step(time, dt)
-            yield (time + dt, crane)
-            time += dt
-        else:
-            break
+    for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
+        if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
+            controls.setgoal("wire", 1, 1.0, 10.0)
+        controls.step(time, dt)
+        if controls.goals[3] is not None:
+            r.boom_setter((controls.current[3][0], None, None))
+        if controls.goals[1] is not None or controls.goals[2] is not None:
+            b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
+        if controls.goals[0] is not None:
+            p.boom_setter((None, None, controls.current[0][0]))
+        crane.do_step(time, dt)
+        yield (time + dt, crane)
 
 
 def test_animation_control(crane, show):
     if not show:  # if nothing can be shown, we do not need to run it
         return
-    ani = AnimateCrane(crane, movement, dt=0.1, end_time=20)
+    ani = AnimateCrane(crane, movement, dt=0.1, end_time=20) # type: ignore  ## It is a Generator!
     ani.do_animation()
 
 
