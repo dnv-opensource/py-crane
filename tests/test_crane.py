@@ -11,6 +11,7 @@ from component_model.utils.transform import rot_from_spherical, rot_from_vectors
 from matplotlib.animation import FuncAnimation
 from scipy.spatial.transform import Rotation as Rot
 
+from crane_fmu.animation import AnimateCrane
 from crane_fmu.boom import Boom
 from crane_fmu.crane import Crane
 
@@ -616,96 +617,51 @@ def test_animation(crane, show):
     # assert np.allclose(r.origin, (0, -15 / sqrt(2), 3 + 15 / sqrt(2)))
 
 
+def movement(crane, dt: float = 0.01, t_end: float = 10.0):
+    """Create movement of the crane through definition and usage of Controls.
+    Generaor function which yields updated crane objects.
+    time is defined global as a simple way to draw the current time together with the title.
+    """
+    # initial definition of controls and start values
+    controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
+    f, p, b1, r = list(crane.booms())
+    controls.append("turn", (None, (-0.31, 0.31), (-0.16, 0.16)))  # free rotation, max 1 turn/20sec, 2sec to max
+    controls.append("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)))  # 90 deg, 5/-2.5 deg/sec, 2sec to max
+    controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
+    controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
+    f, p, b1, r = list(crane.booms())
+    time = 0.0
+    controls.current[2][0] = 8.0  # b1 starts with 8m
+    controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
+    controls.current[3][0] = 0.5  # wire length starts 0.5m
+
+    # From time 0 we set three goals
+    controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
+    controls.setgoal("luff", 0, radians(45), 0.0)  # luff boom to 45 deg
+    controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
+    while True:
+        if time < t_end:
+            if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
+                controls.setgoal("wire", 1, 1.0, 10.0)
+            controls.step(time, dt)
+            if controls.goals[3] is not None:
+                r.boom_setter((controls.current[3][0], None, None))
+            if controls.goals[1] is not None or controls.goals[2] is not None:
+                b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
+            if controls.goals[0] is not None:
+                p.boom_setter((None, None, controls.current[0][0]))
+            crane.do_step(time, dt)
+            yield (time + dt, crane)
+            time += dt
+        else:
+            break
+
+
 def test_animation_control(crane, show):
     if not show:  # if nothing can be shown, we do not need to run it
         return
-
-    def movement(crane, dt: float = 0.01, t_end: float = 10.0):
-        """Create movement of the crane through definition and usage of Controls.
-        Generaor function which yields updated crane objects.
-        time is defined global as a simple way to draw the current time together with the title.
-        """
-        global time
-        # initial definition of controls and start values
-        controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
-        f, p, b1, r = list(crane.booms())
-        controls.append("turn", (None, (-0.31, 0.31), (-0.16, 0.16)))  # free rotation, max 1 turn/20sec, 2sec to max
-        controls.append("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)))  # 90 deg, 5/-2.5 deg/sec, 2sec to max
-        controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
-        controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
-        f, p, b1, r = list(crane.booms())
-        time = 0.0
-        controls.current[2][0] = 8.0  # b1 starts with 8m
-        controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
-        controls.current[3][0] = 0.5  # wire length starts 0.5m
-
-        # From time 0 we set three goals
-        controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
-        controls.setgoal("luff", 0, radians(45), 0.0)  # luff boom to 45 deg
-        controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
-        while True:
-            if time < t_end:
-                if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
-                    controls.setgoal("wire", 1, 1.0, 10.0)
-                controls.step(time, dt)
-                if controls.goals[3] is not None:
-                    r.boom_setter((controls.current[3][0], None, None))
-                if controls.goals[1] is not None or controls.goals[2] is not None:
-                    b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
-                if controls.goals[0] is not None:
-                    p.boom_setter((None, None, controls.current[0][0]))
-                crane.do_step(time, dt)
-                yield crane
-                time += dt
-            else:
-                break
-
-    def init():
-        """Perform the needed initializations."""
-        ax = plt.axes(projection="3d")  # , data=line)
-        ax.set_xlim(-10, 10)
-        ax.set_ylim(-10, 10)
-        ax.set_zlim(0, 10)  # type: ignore [attr-defined] ## according to matplotlib recommendations
-        for b in crane.booms():
-            lw = {"pedestal": 10, "rope": 1}.get(b.name, 4)
-            lines.append(
-                ax.plot(
-                    [b.origin[0], b.end[0]],
-                    [b.origin[1], b.end[1]],
-                    [b.origin[2], b.end[2]],
-                    linewidth=lw,
-                )
-            )
-
-        return
-
-    def update(crane):
-        """Receives the frames from FuncAnimation with updated crane objects. Draw the booms as lines."""
-        global time
-        ends = []
-        for i, b in enumerate(crane.booms()):
-            lines[i][0].set_data_3d(
-                [b.origin[0], b.end[0]],
-                [b.origin[1], b.end[1]],
-                [b.origin[2], b.end[2]],
-            )
-            ends.append(b.end)
-        plt.title(f"Crane animation ({time:.1f})", loc="left")
-
-    lines = []
-    time = 0.0  # noqa: F841  # used in sub-functions!
-    fig = plt.figure(figsize=(8, 8), layout=None)  # "constrained")
-    _ = FuncAnimation(
-        fig,
-        update,  # type: ignore  ## this is a function!
-        frames=movement(crane, dt=0.1, t_end=20.0),  # yields crane object as frame
-        init_func=init,  # type: ignore  ## this is a function!
-        interval=200,
-        blit=False,
-        cache_frame_data=False,
-    )
-    plt.show()
-    # assert np.allclose(r.origin, (0, -15 / sqrt(2), 3 + 15 / sqrt(2)))
+    ani = AnimateCrane(crane, movement, dt=0.1, end_time=20)
+    ani.do_animation()
 
 
 def show_crane(_crane, markCOM=True, markSubCOM=True, title: str | None = None):

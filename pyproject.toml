@@ -35,7 +35,7 @@ allow-direct-references = true
         {name = "Jorge Luis Mendez", email = "Jorge.Luis.Mendez@DNV.com"},
     ]
     readme = "README.rst"
-    requires-python = ">=3.10"
+    requires-python = ">=3.11"
     keywords = ["simulation", "model", "FMI", "OSP", "crane", "tight coupling"]
     license = {text = "MIT"}
     classifiers = [
@@ -46,7 +46,7 @@ allow-direct-references = true
     dependencies = [
         "component-model>=0.0.2",
         "pythonfmu==0.6.7",  #?? should be changed back to >= when 0.7.0 is fixed
-        "numpy>=1.24.2",
+        "numpy>=2.0",
         "scipy>=1.15.1",
 ]
     #dynamic = ["version"]

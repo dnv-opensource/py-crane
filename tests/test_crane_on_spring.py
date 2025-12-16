@@ -132,7 +132,7 @@ def test_crane_on_spring(show: bool = False):
     """Test the crane object as force on a 6D oscillator. No FMUs involved."""
     cm_path = None
     for p in sys.path:
-        if p.endswith('component-model'):
+        if p.endswith("component-model"):
             cm_path = p
             break
     assert cm_path is not None, "Path to component-model package not found. Needed for OscillatorXD."
