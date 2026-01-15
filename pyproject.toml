@@ -92,9 +92,7 @@ required-environments = [
 crane-fmu = "crane_fmu.cli.crane_fmu:main"
 
 [tool.mypy]
-plugins = [
-    "numpy.typing.mypy_plugin",
-]
+plugins = []
 mypy_path = "stubs"
 files = [
     "src",
