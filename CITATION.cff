@@ -24,6 +24,8 @@ keywords:
     - simulation
     - model
     - FMI
+    - crane
+    - tight coupling
 license: MIT
 license-url: 'https://dnv-opensource.github.io/crane-fmu/LICENSE.html'
 url: 'https://dnv-opensource.github.io/crane-fmu/README.html'
