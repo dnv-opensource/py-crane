@@ -1,5 +1,7 @@
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatchling",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
@@ -27,38 +29,58 @@ packages = [
 allow-direct-references = true
 
 [project]
-    name = "crane-fmu"
-    version = "0.2"
-    description = "Basic crane simulation model including publication as FMU, for usage in the SEACo project"
-    authors = [
-        {name = "Siegfried Eisinger", email = "Siegfried.Eisinger@DNV.com"},
-        {name = "Jorge Luis Mendez", email = "Jorge.Luis.Mendez@DNV.com"},
-    ]
-    readme = "README.rst"
-    requires-python = ">= 3.11"
-    keywords = ["simulation", "model", "FMI", "OSP", "crane", "tight coupling"]
-    license = {text = "MIT"}
-    classifiers = [
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-    ]
-    dependencies = [
-        "component-model>=0.0.2",
-        "pythonfmu>=0.7.0",
-        "numpy>=2.3",
-        "scipy>=1.16",
+name = "crane-fmu"
+version = "0.2.0"
+description = "Basic crane simulation model including publication as FMU, for usage in the SEACo project"
+readme = "README.rst"
+requires-python = ">= 3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Siegfried Eisinger", email = "siegfried.eisinger@dnv.com" },
+    { name = "Jorge Luis Mendez", email = "jorge.luis.mendez@dnv.com" },
 ]
-    #dynamic = ["version"]
-
+maintainers = [
+    { name = "Claas Rostock", email = "claas.rostock@dnv.com" },
+]
+keywords = ["simulation", "model", "FMI", "OSP", "crane", "tight coupling",]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    # "Operating System :: MacOS",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "component-model>=0.0.2",
+    "pythonfmu>=0.7.0",
+    "numpy>=2.3",
+    "scipy>=1.16",
+]
+# dynamic = ["version"]
 
 [project.optional-dependencies]
-    rest = ["docutils>=0.3"]
-    test = ["FMPy>=0.3.21",
-            "matplotlib>=3.10",
-            "plotly>=6.3",
-#            "libcosimpy >= 0.0.5",
-    ]
+rest = ["docutils>=0.3"]
+test = ["FMPy>=0.3.21",
+        "matplotlib>=3.10",
+        "plotly>=6.3",
+#        "libcosimpy >= 0.0.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/dnv-opensource/crane-fmu"
+Documentation = "https://dnv-opensource.github.io/crane-fmu/README.html"
+Repository = "https://github.com/dnv-opensource/crane-fmu.git"
+Issues = "https://github.com/dnv-opensource/crane-fmu/issues"
+Changelog = "https://github.com/dnv-opensource/crane-fmu/blob/main/CHANGELOG.md"
+
 
 [dependency-groups]
 dev = [
@@ -88,8 +110,10 @@ required-environments = [
     # "sys_platform == 'darwin'",
 ]
 
+
 [project.scripts]
-crane-fmu = "crane_fmu.cli.crane_fmu:main"
+crane-fmu = "crane_fmu.cli.__main__:main"
+
 
 [tool.mypy]
 plugins = []
@@ -119,3 +143,38 @@ include = [
 exclude = [
     "tests/test_working_directory",
 ]
+
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportMissingParameterType = "error"
+reportUnknownParameterType = "warning"
+reportUnknownMemberType = "warning"                # consider to set to `false` if you work a lot with matplotlib and pandas, which are both not properly typed and known to trigger this warning
+reportMissingTypeArgument = "error"
+reportPropertyTypeMismatch = "error"
+reportFunctionMemberAccess = "warning"
+reportPrivateUsage = "warning"
+reportTypeCommentUsage = "warning"
+reportIncompatibleMethodOverride = "warning"
+reportIncompatibleVariableOverride = "error"
+reportInconsistentConstructor = "error"
+reportOverlappingOverload = "warning"
+reportUninitializedInstanceVariable = "warning"
+reportCallInDefaultInitializer = "warning"
+reportUnnecessaryIsInstance = "information"
+reportUnnecessaryCast = "warning"
+reportUnnecessaryComparison = "warning"
+reportUnnecessaryContains = "warning"
+reportUnusedCallResult = "warning"
+reportUnusedExpression = "warning"
+reportMatchNotExhaustive = "warning"
+reportUntypedFunctionDecorator = "warning"
+reportUntypedClassDecorator = "warning"
+reportUntypedBaseClass = "error"
+reportUntypedNamedTuple = "warning"
+reportUnnecessaryTypeIgnoreComment = "information"
+# Activate the following rules only locally and temporary, i.e. for a QA session.
+# (For server side CI they are considered too strict.)
+# reportMissingTypeStubs = true
+# reportConstantRedefinition = "warning"
+# reportImportCycles = "warning"
+# reportImplicitStringConcatenation = "warning"
