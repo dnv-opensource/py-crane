@@ -111,10 +111,6 @@ required-environments = [
 ]
 
 
-[project.scripts]
-crane-fmu = "crane_fmu.cli.__main__:main"
-
-
 [tool.mypy]
 plugins = []
 mypy_path = "stubs"
