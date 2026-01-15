@@ -47,7 +47,7 @@ allow-direct-references = true
         "component-model>=0.0.2",
         "pythonfmu>=0.7.0",
         "numpy>=2.3",
-        "scipy>=1.15.1",
+        "scipy>=1.16",
 ]
     #dynamic = ["version"]
 
