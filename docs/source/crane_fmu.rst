@@ -9,6 +9,8 @@ Subpackages
    :template: custom-module.rst
    :recursive:
 
+   crane_fmu.utils
+
 
 Modules
 -------
