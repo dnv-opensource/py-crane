@@ -31,7 +31,7 @@ allow-direct-references = true
 [project]
 name = "crane-fmu"
 version = "0.2.0"
-description = "Basic crane simulation model including publication as FMU, for usage in the SEACo project"
+description = "Basic crane simulation model including publication as FMU, for usage in the SEACo project."
 readme = "README.rst"
 requires-python = ">= 3.11"
 license = { file = "LICENSE" }
@@ -42,7 +42,14 @@ authors = [
 maintainers = [
     { name = "Claas Rostock", email = "claas.rostock@dnv.com" },
 ]
-keywords = ["simulation", "model", "FMI", "OSP", "crane", "tight coupling",]
+keywords = [
+    "simulation",
+    "model",
+    "FMI",
+    "OSP",
+    "crane",
+    "tight coupling",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
@@ -68,10 +75,11 @@ dependencies = [
 
 [project.optional-dependencies]
 rest = ["docutils>=0.3"]
-test = ["FMPy>=0.3.21",
-        "matplotlib>=3.10",
-        "plotly>=6.3",
-#        "libcosimpy >= 0.0.5",
+test = [
+    "FMPy>=0.3.21",
+    "matplotlib>=3.10",
+    "plotly>=6.3",
+    # "libcosimpy >= 0.0.5",
 ]
 
 [project.urls]
