@@ -41,6 +41,7 @@ def test_dir() -> Path:
 
 output_dirs = [
     "results",
+    "data",
 ]
 output_files = [
     "*test*.pdf",
