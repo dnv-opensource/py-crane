@@ -1,34 +1,29 @@
 title: crane-fmu
-version: 0.1.0
+version: 0.2.0
 abstract: >-
-  crane-fmu is an example package supporting xyz.
+    Basic crane simulation model including publication as FMU, for usage in the SEACo project.
 type: software
 authors:
-  - name: DNV AS
-    address: 'Veritasveien 1'
-    post-code: '1363'
-    city: Høvik
-    country: NO
-    website: 'https://www.dnv.com/'
-  - given-names: Author
-    family-names: One
-    affiliation: DNV
-    email: siegfried.eisinger@dnv.com
-    website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
-  - given-names: Author
-    family-names: Two
-    affiliation: DNV
-    email: jorge.luis.mendez@dnv.com
-    website: 'https://www.linkedin.com/in/jorgelmh'
-  - given-names: Author
-    family-names: Three
-    affiliation: DNV
-    email:
-    website: ''
+    - name: DNV AS
+      address: 'Veritasveien 1'
+      post-code: '1363'
+      city: Høvik
+      country: NO
+      website: 'https://www.dnv.com/'
+    - given-names: Author
+      family-names: One
+      affiliation: DNV
+      email: siegfried.eisinger@dnv.com
+      website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
+    - given-names: Author
+      family-names: Two
+      affiliation: DNV
+      email: jorge.luis.mendez@dnv.com
+      website: 'https://www.linkedin.com/in/jorgelmh'
 keywords:
-  - simulation
-  - model
-  - FMI
+    - simulation
+    - model
+    - FMI
 license: MIT
 license-url: 'https://dnv-opensource.github.io/crane-fmu/LICENSE.html'
 url: 'https://dnv-opensource.github.io/crane-fmu/README.html'
