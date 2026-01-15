@@ -941,7 +941,7 @@ def test_force_torque(crane, show: bool = False):
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     logging.basicConfig(level=logging.DEBUG)
     plt.set_loglevel(level="warning")

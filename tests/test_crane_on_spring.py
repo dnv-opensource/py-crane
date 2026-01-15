@@ -309,7 +309,7 @@ if __name__ == "__main__":
     'test_mobile_crane_*.py' for the crane
     'test_oscillator_6dof_fmu.py' from the component-model package for the oscillator
     """
-    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # make_fmus()
     # make_mobile_crane_straight()

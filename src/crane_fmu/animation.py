@@ -36,7 +36,7 @@ class AnimateCrane(object):
         dt: float = 0.1,
         t_end: float = 10.0,
         figsize: tuple[int, int] = (8, 8),
-        axes_lim: tuple[tuple[int, int],...] = ((-10, 10), (-10, 10), (0, 10)),
+        axes_lim: tuple[tuple[int, int], ...] = ((-10, 10), (-10, 10), (0, 10)),
         interval: int = 200,
         repeat: bool = False,
         title: str = "Crane animation",
