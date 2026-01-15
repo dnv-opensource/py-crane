@@ -45,7 +45,7 @@ allow-direct-references = true
     ]
     dependencies = [
         "component-model>=0.0.2",
-        "pythonfmu>= 0.7.0",
+        "pythonfmu>=0.7.0",
         "numpy>=2.0",
         "scipy>=1.15.1",
 ]
@@ -60,8 +60,8 @@ allow-direct-references = true
 #            "libcosimpy >= 0.0.5",
     ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.3",
     "pytest-cov>=5.0",
     "ruff>=0.6.3",
@@ -76,7 +76,17 @@ dev-dependencies = [
     "myst-parser>=4.0",
     "furo>=2024.8",
 ]
+
+[tool.uv]
+default-groups = [
+    "dev",
+]
 native-tls = true
+required-environments = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'linux'",
+    # "sys_platform == 'darwin'",
+]
 
 [project.scripts]
 crane-fmu = "crane_fmu.cli.crane_fmu:main"
@@ -85,6 +95,7 @@ crane-fmu = "crane_fmu.cli.crane_fmu:main"
 plugins = [
     "numpy.typing.mypy_plugin",
 ]
+mypy_path = "stubs"
 files = [
     "src",
     "tests",
@@ -98,6 +109,7 @@ disable_error_code = [
     "misc",
     "import-untyped",
 ]
+
 
 [tool.pyright]
 stubPath = "stubs"
