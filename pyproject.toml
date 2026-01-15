@@ -74,7 +74,7 @@ dev = [
     "sphinx-autodoc-typehints>=3.5",
     "sphinxcontrib-mermaid>=1.0.0",
     "myst-parser>=4.0",
-    "furo>=2024.8",
+    "furo>=2025.9",
 ]
 
 [tool.uv]
