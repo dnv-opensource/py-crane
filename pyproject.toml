@@ -35,7 +35,7 @@ allow-direct-references = true
         {name = "Jorge Luis Mendez", email = "Jorge.Luis.Mendez@DNV.com"},
     ]
     readme = "README.rst"
-    requires-python = ">=3.11"
+    requires-python = ">= 3.11"
     keywords = ["simulation", "model", "FMI", "OSP", "crane", "tight coupling"]
     license = {text = "MIT"}
     classifiers = [
