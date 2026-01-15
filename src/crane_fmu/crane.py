@@ -174,8 +174,9 @@ class Crane(object):
 
     def to_crane_angle_default(self, rpy: np.ndarray):
         """Transform the given extrinsic euler angles into the the coordinate system used by the crane.
+
         Note: In maritime applications, the North-East-Down is often used,
-           while crane uses naturally a North-West-Up system. Both are right handed.
+            while crane uses naturally a North-West-Up system. Both are right handed.
         """
         _angle = np.array(rpy, float)  # radians expected here!
         _angle[1] = -_angle[1]
