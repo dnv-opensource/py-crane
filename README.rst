@@ -297,10 +297,6 @@ To contribute, follow these steps:
 
 For your contribution, please make sure you follow the `STYLEGUIDE <STYLEGUIDE.md/>`_ before creating the Pull Request.
 
-.. raw:: html
-
-   <!-- Markdown link & img dfn's -->
-
 .. |pypi| image:: https://img.shields.io/pypi/v/crane-fmu.svg?color=blue
    :target: https://pypi.python.org/pypi/crane-fmu
 .. |versions| image:: https://img.shields.io/pypi/pyversions/crane-fmu.svg?color=blue
