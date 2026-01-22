@@ -70,13 +70,13 @@ class BoomFMU(Boom):
             i.e. how much the boom length can be changed and how (much) it can be rotated
             As normal, range components specified as None denote fixed components.
             Most booms have only one (rotation) degree of freedom.
-        damping (float)=0.0: optional possibility to implement a loose connection between booms.
+        q_factor (float)=0.0: optional possibility to implement a loose connection between booms.
 
-            * if damping=0.0, the connection to the parent boom is stiff according to the boom angle setting
-            * if 0<damping<=0.5, the crane boom (the wire) is implemented as a stiff
+            * if q_factor=0.0, the connection to the parent boom is stiff according to the boom angle setting
+            * if 0<q_factor<=0.5, the crane boom (the wire) is implemented as a stiff rod
                 with a loose connection hanging from the parent boom.
 
-            The damping denotes the dimensionless damping quality factor (energy stored/energy lost per radian),
+            The q_factor denotes the dimensionless quality factor (energy stored/energy lost per radian),
             which is also equal to `2*ln( amplitude/amplitude next period)`, or `pi*frequency*decayTime`
         animationLW (int)=5: Optional possibility to change the default line width when performing animations.
             E.g. the pedestal might be drawn with larger and the wire with smaller line width
@@ -113,7 +113,7 @@ class BoomFMU(Boom):
         mass_center: float | tuple = 0.5,
         boom: tuple = (1, 0, 0),
         boom_rng: tuple = tuple(),
-        damping: float = 0.0,
+        q_factor: float = 0.0,
         animationLW: int = 5,
     ):
         from crane_fmu.crane_fmu import CraneFMU
@@ -170,7 +170,7 @@ class BoomFMU(Boom):
             mass=mass0,
             mass_center=mass_center,  # this could be made an interface variable in advanced cranes
             boom=getattr(self._boom.owner, self._boom.local_name),  #! not getter()! boom.py uses internal variables!
-            damping=damping,
+            q_factor=q_factor,
             animationLW=animationLW,
         )
         # additional output variables

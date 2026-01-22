@@ -201,9 +201,9 @@ class Crane(object):
             rot_angle = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
             self._rot = rot_angle if absolute else rot_angle * self._rot  # absolute or relative angle
             self._angular = np.array(rpy, float) if absolute else self._angular + np.array(rpy, float)
-        fixation_boom = cartesian_to_spherical(self._rot.apply((1e-10, 0.0, 0.0)))
+        fixation_boom = cartesian_to_spherical(self._rot.apply((0.0, 0.0, 1e-10)))
         fixation_boom[0] = None
-        self.boom0.boom_setter(list(fixation_boom))  # fixation spherical angle
+        self.boom0.boom_setter(list(fixation_boom), ch = Change.ROT.value)  # fixation spherical angle
         return self._rot
 
     def calc_statics_dynamics(self, dt=None):

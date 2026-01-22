@@ -45,7 +45,7 @@ allow-direct-references = true
     ]
     dependencies = [
         "component-model>=0.0.2",
-        "pythonfmu==0.6.7",  #?? should be changed back to >= when 0.7.0 is fixed
+        "pythonfmu>= 0.7.0",
         "numpy>=2.0",
         "scipy>=1.15.1",
 ]
@@ -85,7 +85,6 @@ crane-fmu = "crane_fmu.cli.crane_fmu:main"
 plugins = [
     "numpy.typing.mypy_plugin",
 ]
-mypy_path = "stubs"
 files = [
     "src",
     "tests",

@@ -33,6 +33,7 @@ class MobileCrane(CraneFMU):
         boomLength1: str = "50 m",
         boomAngle: str = "90deg",
         wire_mass_range: tuple = ("50kg", "2000 kg"),
+        wire_mass: str|None = None,
         wire_length: float = 1e-6,
         **kwargs,
     ):
@@ -56,10 +57,10 @@ class MobileCrane(CraneFMU):
         _ = self.add_boom(
             name="wire",
             description="The wire fixed to the last boom. Flexible connection",
-            mass="50.0 kg",  # so far basically the hook
+            mass=wire_mass_range[0] if wire_mass is None else wire_mass,
             mass_center=0.99,
             mass_rng=wire_mass_range,
-            boom=(f"{wire_length}m", "180deg", "0 deg"),
+            boom=(f"{wire_length}m", "90deg", "0 deg"),
             boom_rng=(("1e-6 m", boomLength1), (), ()),
             damping=50.0,
             animationLW=2,
@@ -70,6 +71,5 @@ class MobileCrane(CraneFMU):
 
     def do_step(self, current_time: float, step_size: float):
         status = super().do_step(current_time, step_size)
-        # print(f"Time {current_time}, {self.booms("wire").end}")
-        # print(f"MobileCrane.do_step. Status {status}")
+        # print(f"Time {current_time}, {self.force}, {self.torque}, {self.booms('wire').end}")
         return status
