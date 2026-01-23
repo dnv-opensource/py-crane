@@ -101,13 +101,17 @@ class Crane(object):
         """Iterate through the booms.
         If reverse=True, the last element is first found and the iteration produces the booms from end to start.
         """
-        boom: Boom | None = self._boom0
+        boom: Boom | None
+        # Determine the start boom, i.e. the boom the iteration shall start from
+        start_boom: Boom = self._boom0
         if reverse:
-            while boom is not None and boom.anchor1 is not None:  # walk to the end of the crane
-                boom = boom.anchor1
+            while start_boom.anchor1 is not None:  # walk to the end of the crane
+                start_boom = start_boom.anchor1
+        # Iterate through the booms
+        boom = start_boom
         while boom is not None:
             yield boom
-            boom = boom.anchor0 if reverse else boom.anchor1  # type: ignore ## boom on rhs cannot be None
+            boom = boom.anchor0 if reverse else boom.anchor1
 
     def boom_by_name(self, name: str) -> Boom | None:
         """Retrieve a boom object by name. None if not found."""

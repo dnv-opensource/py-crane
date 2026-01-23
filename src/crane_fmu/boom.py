@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from math import isnan, nan, sqrt
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from component_model.utils.transform import (
@@ -20,6 +20,9 @@ from crane_fmu.enum import Change
 # from crane_fmu.crane import Crane
 if TYPE_CHECKING:
     import crane_fmu.crane
+
+# Type Alias for a 1-dim array with 3 elements. Used throughout the code to denote 3D vectors.
+TVector: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
 
 logger = logging.getLogger(__name__)
 
@@ -125,15 +128,18 @@ class Boom(object):
         self._model: crane_fmu.crane.Crane = model
         self.anchor0: Boom | None = anchor0
         self.anchor1: Boom | None = None  # so far. If a boom is added, this is changed
-        self._name = name
-        self.description = description
-        self.q_factor = q_factor
-        self.tolerance = tolerance
-        self.direction: np.ndarray = np.array((0.0, 0.0, -1.0), dtype=np.float64)  # default for non-fixed booms
-        self.r_v = np.array((0.0, 0.0, 0.0), dtype=np.float64)  # velocity of CoM relative to .origin (for pendulum)
-        self.r_acc = np.array((0.0, 0.0, 0.0), dtype=np.float64)  # acc. of CoM relative to .origin (for pendulum)
-        self.animationLW = 5  # default animation line width of boom. Can be changed, e.g. 10 pedestal and 2 for wire.
-        self.origin: np.ndarray[tuple[int], np.dtype[np.float64]]  # 1-dim array with 3 elements
+        self._name: str = name
+        self.description: str = description
+        self.q_factor: float = q_factor
+        self.tolerance: float = tolerance
+        self.direction: TVector = np.array((0.0, 0.0, -1.0), dtype=np.float64)  # default for non-fixed booms
+        # velocity of CoM relative to .origin (for pendulum)
+        self.r_v: TVector = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+        # acc. of CoM relative to .origin (for pendulum)
+        self.r_acc: TVector = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+        # default animation line width of boom. Can be changed, e.g. 10 pedestal and 2 for wire.
+        self.animationLW: int = 5
+        self.origin: TVector
         if self.anchor0 is None:  # this defines the fixation of the crane as a 'pseudo-boom'
             boom = (1e-10, 0.0, 0.0)  # z-axis in spherical coordinates
             self.origin = np.array((0.0, 0.0, -1e-10), dtype=np.float64)
@@ -152,9 +158,13 @@ class Boom(object):
         # rot denotes the rotation which turns (0,0,1) into the direction
         self._rot: Rot = Rot.identity() if self.anchor0 is None else self.anchor0._rot * rot_from_spherical(boom[1:])
         self.direction = self._rot.apply((0.0, 0.0, 1.0))
-        # self._c_m = np.array( (0,0,0), dtype=np.float64) # just to make _c_m known. Updated by method c_m
-        self._c_m = self.c_m  # save the current value, running method self.c_m
-        self._c_m_sub: tuple[float, np.ndarray] = (self.mass, self._c_m)  # updated by calc_statics_dynamics
+        # self._c_m = np.array( (0.0, 0.0, 0.0), dtype=np.float64) # just to make _c_m known. Updated by method c_m
+        # save the current value, running method self.c_m
+        self._c_m: TVector = self.c_m
+        self._c_m_sub: tuple[float, TVector] = (
+            self.mass,
+            self._c_m,
+        )  # updated by calc_statics_dynamics
         _ = self.damping(q_factor=self.q_factor)  # pre-calculate self._damping_time for usage in _pendulum
         # self.control = Control( ('len','polar','azimuth'), limits) # control object (without goals)
         self.calc_statics_dynamics(dt=None)
@@ -164,7 +174,8 @@ class Boom(object):
         """Facilitate subscripting booms. 'idx' denotes the connected boom with respect to self.
         Negative indices count from the tail. str indices identify booms by name.
         """
-        b = self
+        b: Boom | None = self
+        assert b is not None
         if isinstance(idx, str):  # retrieve by name
             while True:
                 if b is None or b.name != idx and b.anchor1 is None:
@@ -248,15 +259,15 @@ class Boom(object):
         return self._name
 
     @property
-    def length(self):
+    def length(self) -> np.floating:
         return self.boom[0]
 
     @property
-    def end(self):
+    def end(self) -> TVector:
         return self.origin + self.length * self.direction
 
     @property
-    def c_m(self):
+    def c_m(self) -> TVector:
         """Updates and returns the local center of mass point relative to self.origin."""
         self._c_m = self.mass_center[0] * self.length * self.direction + np.array(
             (self.mass_center[1], self.mass_center[2], 0), float

@@ -113,7 +113,7 @@ class BoomFMU(Boom):
         mass_rng: tuple[str, str] | None = None,
         mass_center: float | tuple[float, float, float] = 0.5,
         boom: tuple[float, float, float] = (1.0, 0.0, 0.0),
-        boom_rng: tuple = (),
+        boom_rng: tuple[tuple[float, float], ...] = (),
         q_factor: float = 0.0,
         animationLW: int = 5,
     ):
