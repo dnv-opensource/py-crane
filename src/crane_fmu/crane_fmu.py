@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false
 from __future__ import annotations
 
 import logging
@@ -10,6 +11,7 @@ from component_model.variable_naming import VariableNamingConvention
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
+from crane_fmu.boom import Boom
 from crane_fmu.boom_fmu import BoomFMU
 from crane_fmu.crane import Crane
 
@@ -113,17 +115,21 @@ class CraneFMU(Model, Crane):
             start=("0.0 N.m",) * 3,
         )
 
-    def add_boom(self, *args, **kvargs):
+    def add_boom(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> BoomFMU:
         """Add a boom to the crane. Overridden to ensure that a BoomFMU is added.
 
         This method represents the recommended way to contruct a crane and then add the booms.
         The `model` and `anchor0` parameters are automatically added to the boom when it is instantiated.
         `args` and `kwargs` thus include all `Boom` parameters, but the `model` and the `anchor0`
         """
-        if "anchor0" not in kvargs:
-            last = next(self.booms(reverse=True))
-            kvargs.update({"anchor0": last})
-        return BoomFMU(self, *args, **kvargs)
+        if "anchor0" not in kwargs:
+            last: Boom = next(self.booms(reverse=True))
+            kwargs["anchor0"] = last
+        return BoomFMU(self, *args, **kwargs)
 
     def ensure_boom(self, boom: BoomFMU):
         """Ensure that the boom is registered before structured variables are added to it.

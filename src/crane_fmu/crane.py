@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Generator, Sequence
+from typing import Any, Callable, Generator, Sequence, TypeAlias
 
 import numpy as np
 from component_model.utils.transform import cartesian_to_spherical
@@ -11,6 +11,10 @@ from crane_fmu.boom import Boom
 from crane_fmu.enum import Change
 
 logger = logging.getLogger(__name__)
+
+CoordinateTransform: TypeAlias = Callable[
+    [np.ndarray[tuple[int], np.dtype[np.float64]]], np.ndarray[tuple[int], np.dtype[np.float64]]
+]
 
 
 class Crane(object):
@@ -56,20 +60,22 @@ class Crane(object):
           Should be a function of an Euler angle, corresponding also to the choice of 'degrees'.
     """
 
-    to_crane_angle: Callable
+    to_crane_angle: CoordinateTransform
 
-    def __init__(self, to_crane_angle: Callable | None = None):
+    def __init__(self, to_crane_angle: CoordinateTransform | None = None):
         """Initialize the crane object."""
-        self.to_crane_angle: Callable = self.to_crane_angle_default  # args: (angle, degrees:bool = False)
+        self.to_crane_angle: CoordinateTransform = self.to_crane_angle_default  # args: (angle, degrees:bool = False)
         if to_crane_angle is not None:  # non-default transformation function
             self.to_crane_angle = to_crane_angle
         self._rot: Rot = Rot.from_euler("XYZ", (0, 0, 0))  # current rotations (roll,pitch,yaw) of crane
-        self._angular = np.array((0.0, 0.0, 0.0), float)  # current angle as (roll,pitch,yaw)
-        self._d_angular = np.array((0.0, 0.0, 0.0), float)  # current angular speed as (roll,pitch,yaw)
-        self.d2_angular = np.array((0.0, 0.0, 0.0), float)  # current angular acceleration as (roll,pitch,yaw)
-        self._position = np.array((0.0, 0.0, 0.0), float)
-        self._velocity = np.array((0.0, 0.0, 0.0), float)
-        self.d_velocity = np.array((0.0, 0.0, 0.0), float)
+        self._angular = np.array((0.0, 0.0, 0.0), dtype=np.float64)  # current angle as (roll,pitch,yaw)
+        self._d_angular = np.array((0.0, 0.0, 0.0), dtype=np.float64)  # current angular speed as (roll,pitch,yaw)
+        self.d2_angular = np.array(
+            (0.0, 0.0, 0.0), dtype=np.float64
+        )  # current angular acceleration as (roll,pitch,yaw)
+        self._position = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+        self._velocity = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+        self.d_velocity = np.array((0.0, 0.0, 0.0), dtype=np.float64)
         self._boom0 = Boom(
             self,
             "fixation",
@@ -79,8 +85,8 @@ class Crane(object):
             boom=(1e-10, 0.0, 0.0),
         )
         self.boom_: Boom = self.boom0  # keep track of the last boom
-        self.torque = np.array((0, 0, 0), float)
-        self.force = np.array((0, 0, 0), float)
+        self.torque = np.array((0, 0, 0), dtype=np.float64)
+        self.force = np.array((0, 0, 0), dtype=np.float64)
 
     @property
     def boom0(self) -> Boom:
@@ -91,7 +97,7 @@ class Crane(object):
         assert isinstance(newVal, Boom), f"A boom object expected as first boom on crane. Got {type(newVal)}"
         self._boom0 = newVal
 
-    def booms(self, reverse=False) -> Generator[Boom]:
+    def booms(self, *, reverse: bool = False) -> Generator[Boom]:
         """Iterate through the booms.
         If reverse=True, the last element is first found and the iteration produces the booms from end to start.
         """
@@ -110,17 +116,21 @@ class Crane(object):
                 return b
         return None
 
-    def add_boom(self, *args, **kvargs):
+    def add_boom(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Boom:
         """Add a boom to the crane.
 
         This method represents the recommended way to contruct a crane and then add the booms.
         The `model` and `anchor0` parameters are automatically added to the boom when it is instantiated.
         `args` and `kwargs` thus include all `Boom` parameters, but the `model` and the `anchor0`
         """
-        if "anchor0" not in kvargs:
+        if "anchor0" not in kwargs:
             last = next(self.booms(reverse=True))
-            kvargs.update({"anchor0": last})
-        self.boom_ = Boom(self, *args, **kvargs)
+            kwargs.update({"anchor0": last})
+        self.boom_ = Boom(self, *args, **kwargs)
         return self.boom_  # the new last boom
 
     @property
@@ -166,24 +176,30 @@ class Crane(object):
         """Instantaneeous change of angular valocity. Not menat for dynamical analysis. Use d2_angular for that."""
         self._d_angular = newval
 
-    def rot(self, rpy: Sequence | np.ndarray | None = None):
+    def rot(self, rpy: Sequence[float] | np.ndarray[tuple[int], np.dtype[np.float64]] | None = None):
         """Get/Set a new absolute rotation through an Euler angle."""
         if rpy is not None:  # set a new value
             self._rot = self.rotate(rpy, absolute=True)
         return self._rot
 
-    def to_crane_angle_default(self, rpy: np.ndarray):
+    def to_crane_angle_default(
+        self, rpy: np.ndarray[tuple[int], np.dtype[np.float64]]
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         """Transform the given extrinsic euler angles into the the coordinate system used by the crane.
 
         Note: In maritime applications, the North-East-Down is often used,
             while crane uses naturally a North-West-Up system. Both are right handed.
         """
-        _angle = np.array(rpy, float)  # radians expected here!
+        _angle = np.array(rpy, dtype=np.float64)  # radians expected here!
         _angle[1] = -_angle[1]
         _angle[2] = -_angle[2]
         return _angle
 
-    def rotate(self, rpy: Sequence | np.ndarray | Rot, absolute: bool = False):
+    def rotate(
+        self,
+        rpy: Sequence[float] | np.ndarray[tuple[int], np.dtype[np.float64]] | Rot,
+        absolute: bool = False,
+    ):
         """Set the orientation to a new value according to ISO 1151–2 (roll,pitch,yaw) - rotations.
 
         Args:
@@ -198,16 +214,18 @@ class Crane(object):
             self._rot = rpy if absolute else self._rot * rpy
             angle = self._rot.as_euler("XYZ")
         else:  # euler angle provided
-            angle = self.to_crane_angle(np.array(rpy, float))
+            angle = self.to_crane_angle(np.array(rpy, dtype=np.float64))
             rot_angle = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw
             self._rot = rot_angle if absolute else rot_angle * self._rot  # absolute or relative angle
-            self._angular = np.array(rpy, float) if absolute else self._angular + np.array(rpy, float)
+            self._angular = (
+                np.array(rpy, dtype=np.float64) if absolute else self._angular + np.array(rpy, dtype=np.float64)
+            )
         fixation_boom = cartesian_to_spherical(self._rot.apply((0.0, 0.0, 1e-10)))
         fixation_boom[0] = None
-        self.boom0.boom_setter(list(fixation_boom), ch = Change.ROT.value)  # fixation spherical angle
+        self.boom0.boom_setter(list(fixation_boom), ch=Change.ROT.value)  # fixation spherical angle
         return self._rot
 
-    def calc_statics_dynamics(self, dt=None):
+    def calc_statics_dynamics(self, dt: float | None = None):
         """Run `calc_statics_dynamics()` on all booms in reverse order,
         to get all Boom._c_m_sub and dynamics updated.
         """

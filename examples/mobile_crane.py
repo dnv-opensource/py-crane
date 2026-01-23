@@ -1,3 +1,5 @@
+from typing import Any
+
 from crane_fmu.crane_fmu import CraneFMU  # , Animation
 
 
@@ -26,16 +28,16 @@ class MobileCrane(CraneFMU):
         version: str = "0.3",
         degrees: bool = True,
         pedestalMass: str = "10000.0 kg",
-        pedestalCoM: tuple = (0.5, -1.0, 0.8),
+        pedestalCoM: tuple[float, float, float] = (0.5, -1.0, 0.8),
         pedestalHeight: str = "3.0 m",
         boomMass: str = "1000.0 kg",
         boomLength0: str = "8 m",
         boomLength1: str = "50 m",
         boomAngle: str = "90deg",
-        wire_mass_range: tuple = ("50kg", "2000 kg"),
-        wire_mass: str|None = None,
+        wire_mass_range: tuple[str, str] = ("50kg", "2000 kg"),
+        wire_mass: str | None = None,
         wire_length: float = 1e-6,
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(name=name, description=description, author=author, version=version, degrees=degrees, **kwargs)
         _pedestal = self.add_boom(
