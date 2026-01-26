@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import cast
+from typing import cast, Sequence, Never, Any
 
 import numpy as np
 from component_model.model import Model
@@ -113,7 +113,7 @@ class BoomFMU(Boom):
         mass_rng: tuple[str, str] | None = None,
         mass_center: float | tuple[float, float, float] = 0.5,
         boom: tuple[float, float, float] = (1.0, 0.0, 0.0),
-        boom_rng: tuple[tuple[float, float], ...] = (),
+        boom_rng: tuple[tuple[Any, Any] | None | Sequence[Never],...] = tuple(),
         q_factor: float = 0.0,
         animationLW: int = 5,
     ):
@@ -128,7 +128,7 @@ class BoomFMU(Boom):
 
         # Interface specifications. When we have the start values we can instantiate the Boom
         _c, _v = ("parameter", "fixed") if mass_rng is None else ("input", "continuous")
-        self._mass = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
+        self._mass = model.add_variable(
             f"{name}.mass",
             description=f"Mass of boom {name}",
             causality=_c,
@@ -145,20 +145,17 @@ class BoomFMU(Boom):
         _boom: list[float | str] = list(boom)  # make it changeable
         if _boom[0] == 0:
             _boom[0] = f"0 {u_length}"
-        for i in range(
-            1, 3
-        ):  # TODO @eisDNV: range(1,3) produces 1, 2 (but not '3'). Is that intended? ClaasRostock, 2026-01-23
+        for i in range(1, 3): # the two spherical angles
             if _boom[i] == 0:
                 _boom[i] = f"0{u_angle}"
             elif not isinstance(_boom[i], str) or u_angle not in cast(str, _boom[i]):
                 logger.error(f"All angles shall be provided as {u_angle}")
                 _boom[i] = f"{_boom[i]}{u_angle}"
-        for i in range(1, 2):  # TODO @eisDNV: range(1,2) produces only i=1. Is that intended? ClaasRostock, 2026-01-23
             assert (
-                boom_rng is None
+                boom_rng is None 
                 or boom_rng[i] is None
-                or not len(boom_rng[i])
-                or (boom_rng[i][0] > float("-inf") and boom_rng[i][1] < float("inf"))
+                or not len(boom_rng[i]) # type: ignore[arg-type]  ## should have a length at this point
+                or (boom_rng[i][0] > float("-inf") and boom_rng[i][1] < float("inf")) # type: ignore[index]
             ), f"The range of {self.name}[{i}] should not be limited, as radian variables are periodic"
         self._boom = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
             f"{name}.boom",

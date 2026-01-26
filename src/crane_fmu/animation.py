@@ -9,6 +9,7 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3D
 
+from crane_fmu.boom import Boom
 from crane_fmu.crane import Crane
 
 logger = logging.getLogger(__name__)
@@ -221,7 +222,7 @@ class AnimatePendulum(object):
         self.ys = [self.wire.end[1]]
         self.zs = [self.wire.end[2]]
 
-    def update(self, frame: tuple[float, Crane]) -> None:
+    def update(self, frame: tuple[float, Boom]) -> None:
         """Receives the frames from FuncAnimation with updated crane objects. Draw the booms as lines."""
         # TODO @eisDNV:
         #      Parameter `frame` is, as per my current understanding from reverse-engineering,

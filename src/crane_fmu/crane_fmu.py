@@ -63,7 +63,7 @@ class CraneFMU(Model, Crane):
             mass="1e-10 kg",
             mass_rng=None,
             boom=(1e-10, 0, 0),
-            boom_rng=(None, (), ()),
+            boom_rng=(None, tuple(), tuple()),
         )
         _ = Variable(
             self,

@@ -153,7 +153,7 @@ def make_crane_on_spring(
     bM: float = 1000.0,  # in kg
     bL: float = 8.0,  # in m
     bA: float = np.radians(90.0),  # in radians
-    wM: str = 50.0,  # in kg
+    wM: float = 50.0,  # in kg
     wL: float = 1e-6,
     wQ: float = 50.0,  # dimensionless quality factor
     k: tuple = (1e4,) * 6,

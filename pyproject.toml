@@ -79,7 +79,7 @@ test = [
     "FMPy>=0.3.21",
     "matplotlib>=3.10",
     "plotly>=6.3",
-    # "libcosimpy >= 0.0.5",
+    "libcosimpy >= 0.0.5",
 ]
 
 [project.urls]

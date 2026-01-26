@@ -14,15 +14,13 @@ from component_model.utils.transform import (
 from scipy.integrate import solve_ivp
 from scipy.spatial.transform import Rotation as Rot
 
-# from crane_fmu.controls import Controls
 from crane_fmu.enum import Change
 
-# from crane_fmu.crane import Crane
 if TYPE_CHECKING:
     import crane_fmu.crane
 
 # Type Alias for a 1-dim array with 3 elements. Used throughout the code to denote 3D vectors.
-TVector: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
+TVector: TypeAlias = np.ndarray[tuple[int,...], np.dtype[np.float64]]
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +156,7 @@ class Boom(object):
         # rot denotes the rotation which turns (0,0,1) into the direction
         self._rot: Rot = Rot.identity() if self.anchor0 is None else self.anchor0._rot * rot_from_spherical(boom[1:])
         self.direction = self._rot.apply((0.0, 0.0, 1.0))
+        self._new_len : float | None # place holder for length changes
         # self._c_m = np.array( (0.0, 0.0, 0.0), dtype=np.float64) # just to make _c_m known. Updated by method c_m
         # save the current value, running method self.c_m
         self._c_m: TVector = self.c_m
@@ -396,6 +395,7 @@ class Boom(object):
 
         Note: a new length may be stored as self._new_len and the origin might need updating to .anchor0.end
         """
+        assert self.anchor0 is not None, "Function cannot be called on fixation."
         if self._new_len is not None:  # a new length has been stored, but is not affectuated
             self.boom[0] = self._new_len  #! we assume that the direction does not change
             self._new_len = None
@@ -454,7 +454,7 @@ class Boom(object):
                 r2 (float): the squared pendulum radius with respect to COM
                 g (float): gravitational acceleration as ndarray
                 dr_dt (ndarray): Optional movement of the origin through dt
-                dl_dt (float): Optional change of wire length through dt
+                l_fac (float): Optional change of wire length through dt: l(t) = l0*(1+l_fac)*t
             """
             r = y[:3] if dr_dt is None else y[:3] - dr_dt * t
             v = y[3:]  # if dr_dt is None else y[3:] - dr_dt
@@ -471,9 +471,8 @@ class Boom(object):
             #     v += dr_dt
             return np.append(v, self.r_acc)
 
+        assert self.anchor0 is not None, f"_pendulum() called on fixation {self.name}"
         assert self.q_factor != 0.0, f"pendulum() called on fixed boom {self.name}"
-        if not np.allclose(self.origin, self.anchor0.end) or self._new_len is not None:
-            print("DIFFERENCE", self.origin - self.anchor0.end, self._new_len)
         if (
             (
                 abs(self.direction[2]) < 1.0 - 1e-10  # pendulum moving or not updated
@@ -489,26 +488,26 @@ class Boom(object):
             else:
                 dr_dt = (self.anchor0.end - self.origin) / dt  # translation in time interval
             if self._new_len is None:
-                dl_dt = None
+                l_fac = None
             else:
-                dl_dt = (self._new_length - self.length) / dt
+                l_fac = (self._new_len / self.length - 1.0) / dt
             R = self.mass_center[0] * self.length  # pendulum radius wrt. center of mass
             r2 = R * R
             g = np.array((0.0, 0.0, -9.81), float)
             r = R * self.direction
             v = self.r_v
-            sol = solve_ivp(
+            sol = solve_ivp( # type: ignore
                 ivp_fun,
                 t_span=[0, dt],
                 y0=np.append(r, v),
                 method="RK45",  # BDF',
-                args=(r2, g, dr_dt, dl_dt),  # square radius (wrt. CoM) and g (vector) as additional argument
+                args=(r2, g, dr_dt, l_fac),  # square radius (wrt. CoM) and g (vector) as additional argument
                 atol=self.tolerance,
             )
             assert sol.status == 0, f"Pendulum solver did not succeed with dt:{dt}. Status:{sol.status}"
             y_t = sol.y[:, -1]  # last column
-            position = y_t[:3]  # if dr_dt is None else y_t[:3] + dr_dt*dt # position of CoM relative to origin
-            self.r_v = y_t[3:]  # if dr_dt is None else y_t[3:] + dr_dt
+            position = y_t[:3] if dr_dt is None else y_t[:3] + dr_dt * dt  # position of CoM relative to origin
+            self.r_v = y_t[3:] if dr_dt is None else y_t[3:] + dr_dt
             if dt >= self._damping_time:  # pendulum stops within dt
                 self.r_v = np.array((0, 0, 0), float)
             else:

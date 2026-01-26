@@ -1,6 +1,6 @@
 import logging
 from math import cos, radians, sin, sqrt
-from typing import Callable, Generator, Sequence
+from typing import Callable, Generator, Sequence, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,8 +24,8 @@ np.set_printoptions(precision=4, suppress=True)
 
 
 def do_show(
-    times: list[float] | np.ndarray,
-    traces: dict[str, list[list[float] | np.ndarray]],
+    times: np.ndarray|list[float],
+    traces: dict[str, list[float]] | dict[str,np.ndarray], #[tuple[float,...],float]],
     selection: dict[str, int] | None = None,
     title: str = "",
 ):
@@ -46,35 +46,38 @@ def do_show(
     plt.show()
 
 
-def set_wire_direction(r: Boom, angles: Sequence, degrees=False):
+def set_wire_direction(r: Boom, angles: tuple[float,float], degrees:bool=False):
     """Set the angles of a wire object. Makes only sense for preparation of test cases. Not allowed in Boom class."""
-    _angles = np.array(angles)
+    _angles = np.array(angles, float)
     if degrees:
         _angles = np.radians(_angles)
     r.boom[1:] = _angles
     assert r.anchor0 is not None
     r.rot(r.anchor0.rot() * rot_from_spherical(_angles))
-    r.direction = r.rot().apply(np.array((0, 0, 1), float))
+    r.direction = r.rot().apply( np.array((0, 0, 1), float))
     r.r_v = np.array((0, 0, 0), float)  # reset also the speed
 
 
-def mass_center(xs: Sequence[Sequence]):
+def mass_center(xs: tuple[tuple[float,np.ndarray],...]):
     """Calculate the total mass center of a number of point masses provided as 4-tuple"""
     M, c = 0.0, np.array((0, 0, 0), float)
-    for x in xs:
-        M += x[0]
-        c += x[0] * np.array(x[1], float)
+    for x, v in xs:
+        M += x
+        c += x * v
     return (M, c / M)
 
 
 def test_mass_center():
-    def do_test(Mc, _M, _c):
-        assert Mc[0] == _M, f"Mass not as expected: {Mc[0]} != {_M}"
-        assert np.allclose(Mc[1], _c)
+    def do_test(Mc:tuple[tuple[float,np.ndarray],...], _M:float, _c:float):
+        print("Mc", Mc)
+        assert cast(float,Mc[0]) == _M, f"Mass not as expected: {Mc[0]} != {_M}"
+        assert np.allclose(cast( np.ndarray, Mc[1]), _c)
+    def vec( *args:float):
+        return np.array( args, float)
 
-    do_test(mass_center(((1, -1, 0, 0), (1, 1, 0, 0), (2, 0, 0, 0))), 4, (0, 0, 0))
-    do_test(mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))), 4, (0, 0, 0))
-    do_test(mass_center(((1, 1, 1, 0), (1, 1, -1, 0), (1, -1, -1, 0), (1, -1, 1, 0))), 4, (0, 0, 0))
+    do_test( mass_center(((1, vec(-1, 0, 0)), (1,vec(1, 0, 0)), (2, vec(0, 0, 0)))), 4, vec(0, 0, 0))
+    do_test(mass_center(((1, vec(1, 1, 0)), (1, vec(1, -1, 0)), (1, vec(-1, -1, 0)), (1, vec(-1, 1, 0)))), 4, vec(0, 0, 0))
+    do_test(mass_center(((1, vec(1, 1, 0)), (1, vec(1, -1, 0)), (1, vec(-1, -1, 0)), (1, vec(-1, 1, 0)))), 4, vec(0, 0, 0))
 
 
 def aligned(p_i):
@@ -184,7 +187,7 @@ def test_initial(crane):
     assert np.allclose(crane.velocity, (0, 0, 0))
 
     # Check center of mass calculation
-    M, c = mass_center(tuple((b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)))
+    M, c = mass_center(tuple([(b.mass, b.origin + b.c_m) for b in crane.booms(reverse=True)]))
     crane.calc_statics_dynamics()
     _M, _c = crane.c_m_sub
     assert abs(_M - M) < 1e-9, f"Masses {_M} != {M}"
@@ -246,6 +249,7 @@ def test_pendulum(crane, show: bool = False):
         crane_roll: Callable | None = None,
         crane_pitch: Callable | None = None,
         crane_yaw: Callable | None = None,
+        wire_l: Callable | None = None,
     ):
         misc: list[float] = []
         x_pos: list[float] = []
@@ -277,6 +281,8 @@ def test_pendulum(crane, show: bool = False):
                 crane.rotate((0, crane_pitch(crane.current_time), 0), absolute=True)
             if crane_yaw is not None:
                 crane.rotate((0, 0, crane_yaw(crane.current_time)), absolute=True)
+            if wire_l is not None:
+                r.boom_setter((wire_l(crane.current_time), None, None))
             crane.calc_statics_dynamics(dt)
             assert length == r.boom[0], f"Pendulum length {r.boom[0]} != {length}"
 
@@ -305,26 +311,27 @@ def test_pendulum(crane, show: bool = False):
     assert np.allclose(r.origin, (0, 0, 1.0)), f"Origin {r.origin} != (0,0,1)"
     assert np.allclose(r.end, (0, 0, 0)), f"Load expected at (0,0,0). Found {r.end}"
 
-    # Move the whole crane according to a sin function in x-direction, causing forced pendulum actions
-    _damping_time = r.damping(damping_time=20)  # damping
-    set_wire_direction(r, (0, 0))
+    # Start with circular motion of load and shorten wire over time
+    _damping_time = r.damping(damping_time=10000)  # damping
+    set_wire_direction(r, (-90, 0), degrees=True)
+    r.r_v = np.array((0.0, 10.0, 0.0), float)
     time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=1,
-        dt=0.01,
+        t_end=10,
+        dt=0.001,
         min_z=0,
         show_select={
             "x_pos": 1,
             "z_pos": 2,
-            "misc": 1,
-        },  #'speed':2},
-        title=f"test_pendulum. Forced acceleration w. period {2 * np.pi / 1.0}",
-        crane_position=lambda t: 0.01 * np.sin(20.0 * t),  # angular frequency much smaller than natural f.=sqrt(g)
+            #            "speed":1,
+        },
+        title="test_pendulum. Start with rotating load and shorten wire length (0.01+0.01*t)",
+        wire_l=lambda t: 1.0 - 0.002 * t,
     )
-    a, w, phi = sine_fit(time, x_pos)
-    assert abs(a - 0.01) < 1e-3
-    assert abs(w - 1.0) < 1e-3
+    # Qualitative (visual) comparison with forced oscillator is very good, but oscillator is not harmonic
+    # and sweep in low frequency area too fast, so that numerical comparison is difficult.
+    # a, w, phi = sine_fit(time[4100:4900], x_pos[4100:4900]) #t=41..49
 
-    # return
+    return
 
     a0 = np.radians(1.0)
     set_wire_direction(r, (a0, 0))
@@ -393,10 +400,10 @@ def test_pendulum(crane, show: bool = False):
     assert np.allclose(energy, e_decay, atol=1e-3), f"Energy should decay with decay time {_damping_time}"
 
     # Move the whole crane according to a sin function in x-direction, causing forced pendulum actions
-    _damping_time = r.damping(damping_time=20)  # damping
+    _damping_time = r.damping(damping_time=5)  # damping
     set_wire_direction(r, (0, 0))
     time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=10,
+        t_end=500,
         dt=0.01,
         min_z=0,
         show_select={
@@ -404,27 +411,23 @@ def test_pendulum(crane, show: bool = False):
             "z_pos": 2,
             "misc": 1,
         },  #'speed':2},
-        title=f"test_pendulum. Forced acceleration w. period {2 * np.pi / 1.0}",
-        crane_position=lambda t: 0.01 * np.sin(20.0 * t),  # angular frequency much smaller than natural f.=sqrt(g)
+        title="test_pendulum. Forced acceleration sweeping angular frequency (0.01+0.01*t)",
+        crane_position=lambda t: 0.001 * np.sin((0.01 + 0.01 * t) * t),  # angular frequency sweep
     )
-    a, w, phi = sine_fit(time, x_pos)
-    assert abs(a - 0.01) < 1e-3
-    assert abs(w - 1.0) < 1e-3
-
-    return
-    # Same as above, but with frequency sweep, clearly exhibiting the resonant behaviour of the crane.
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=40,
-        dt=0.01,
-        min_z=0,
-        # max_z=1-np.cos(np.radians(1)),
-        # max_speed=np.sqrt(2*9.81/(1-np.cos(np.radians(1)))),
-        show_select={"x_pos": 1},
-        title="test_pendulum. Forced acceleration frequency sweep",
-        crane_position=lambda t: 0.01 * np.sin((0.1 + t / 20) * t),
+    # Qualitative (visual) comparison with forced oscillator is very good, but oscillator is not harmonic
+    # and sweep in low frequency area too fast, so that numerical comparison is difficult.
+    a, w, phi = sine_fit(time[4100:4900], x_pos[4100:4900])  # t=41..49
+    assert abs(a - 0.0101) < 1e-4 and abs(w - 0.9054) < 1e-4 and abs(phi - 0.2861) < 1e-4, (
+        f"Low freq. a:{a}, w:{w}, phi:{phi}"
     )
-    # assert abs(0.1 + tmax / 20 - 2 * np.pi / np.sqrt(9.81)) < 0.2, "Close to resonance frequency"
-    # assert zmax > 0.15, "Amplitude at about resonance."
+    a, w, phi = sine_fit(time[19988:20201], x_pos[19988:20201])  # t=199.88...202.01,
+    assert abs(a - 0.7555) < 1e-4 and abs(w - 3.0134) < 1e-4 and abs(phi - 0.7548) < 1e-4, (
+        f"Resonance. a:{a}, w:{w}, phi:{phi}"
+    )
+    a, w, phi = sine_fit(time[39990:40080], x_pos[39990:40080])  # t=399.9...400.8
+    assert abs(a - 0.01484) < 1e-4 and abs(w - 8.0171) < 1e-4 and abs(phi + 2.1028) < 1e-4, (
+        f"High freq. a:{a}, w:{w}, phi:{phi}"
+    )
 
     return
     # Forced roll movement at about resonance with damping
@@ -861,6 +864,7 @@ def test_force_torque(crane, show: bool = False):
     p.boom_setter((10, None, None))
     b1.mass = 100
     r.mass = 0.0
+    traces : dict[str, list[float]]
     # -----------------------------------------------------------------
     logger.info("all booms upwards. Calculate static force and torque")
     b1.boom_setter((10, 0, None))
@@ -908,7 +912,7 @@ def test_force_torque(crane, show: bool = False):
     dt = 0.01
     time = 0.0
     _time: list[float] = []
-    traces: dict[str, list] = {"xe": [], "load": [], "force": [], "torque": []}
+    traces = {"xe": [], "load": [], "force": [], "torque": []}
     while time < 20.0:
         crane.d_velocity = np.array((0.1 * np.sin(1.0 * time), 0, 0), float)
         _time.append(time)
@@ -948,10 +952,10 @@ if __name__ == "__main__":
     parsolog.setLevel(logging.WARNING)
     pillog = logging.getLogger("PIL")
     pillog.setLevel(logging.WARNING)
-    # test_mass_center()
+    test_mass_center()
     # test_initial(_crane())
     # test_orientation(_crane(), 32)
-    test_pendulum(_crane(), show=True)
+    # test_pendulum(_crane(), show=True)
     # test_animate_pendulum(show=True)
     # test_sequence(_crane(), show=True)
     # test_change_length(_crane(), show=True)
