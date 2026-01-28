@@ -64,7 +64,7 @@ class MobileCrane(CraneFMU):
             mass_rng=wire_mass_range,
             boom=(f"{wire_length}m", "90deg", "0 deg"),
             boom_rng=(("1e-6 m", boomLength1), (), ()),
-            damping=50.0,
+            q_factor=50.0,
             animationLW=2,
         )
 

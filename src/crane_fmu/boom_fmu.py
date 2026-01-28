@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import cast, Sequence, Never, Any
+from functools import partial
+from typing import Any, Never, Sequence, cast
 
 import numpy as np
 from component_model.model import Model
 
 from crane_fmu.boom import Boom
+from crane_fmu.enum import Change
 
 # from crane_fmu.crane import Crane
 
@@ -113,9 +115,10 @@ class BoomFMU(Boom):
         mass_rng: tuple[str, str] | None = None,
         mass_center: float | tuple[float, float, float] = 0.5,
         boom: tuple[float, float, float] = (1.0, 0.0, 0.0),
-        boom_rng: tuple[tuple[Any, Any] | None | Sequence[Never],...] = tuple(),
+        boom_rng: tuple[tuple[Any, Any] | None | Sequence[Never], ...] = tuple(),
         q_factor: float = 0.0,
         animationLW: int = 5,
+        **kwargs: Any,
     ):
         from crane_fmu.crane_fmu import CraneFMU
 
@@ -145,28 +148,28 @@ class BoomFMU(Boom):
         _boom: list[float | str] = list(boom)  # make it changeable
         if _boom[0] == 0:
             _boom[0] = f"0 {u_length}"
-        for i in range(1, 3): # the two spherical angles
+        for i in range(1, 3):  # the two spherical angles
             if _boom[i] == 0:
                 _boom[i] = f"0{u_angle}"
             elif not isinstance(_boom[i], str) or u_angle not in cast(str, _boom[i]):
                 logger.error(f"All angles shall be provided as {u_angle}")
                 _boom[i] = f"{_boom[i]}{u_angle}"
             assert (
-                boom_rng is None 
+                boom_rng is None
                 or boom_rng[i] is None
-                or not len(boom_rng[i]) # type: ignore[arg-type]  ## should have a length at this point
-                or (boom_rng[i][0] > float("-inf") and boom_rng[i][1] < float("inf")) # type: ignore[index]
+                or not len(boom_rng[i])  # type: ignore[arg-type]  ## should have a length at this point
+                or (boom_rng[i][0] > float("-inf") and boom_rng[i][1] < float("inf"))  # type: ignore[index]
             ), f"The range of {self.name}[{i}] should not be limited, as radian variables are periodic"
-        self._boom = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
+        self._boom = model.add_variable(
             f"{name}.boom",
             description=f"Length [m] and direction [rad] of {name} from anchor point in spherical coordinates",
             causality="input",
             variability="continuous",
             start=_boom,
             rng=boom_rng,
-            on_set=self.boom_setter,
+            on_set=partial(self.boom_setter, ch=Change.ROT.value if q_factor == 0 else 0),
         )
-        assert isinstance(self._boom.owner, Model), "Variable must have an owner"  # pyright: ignore[reportUnknownMemberType]
+        assert isinstance(self._boom.owner, BoomFMU), f"Owner of variable {self._boom}: {self._boom.owner}"
         super().__init__(
             model,
             name,
@@ -202,7 +205,7 @@ class BoomFMU(Boom):
                 variability="continuous",
                 start=(f"0 m/{u_time}**2", f"0 {u_angle}/{u_time}**2", f"0 {u_angle}/{u_time}**2"),
             )
-            if self._mass.range[0][0] != self._mass.range[0][1]:  # mass is changeable (normally the load)
+            if self._mass.range[0].rng[0] != self._mass.range[0].rng[1]:  # mass is changeable (normally the load)
                 self._der1_mass = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
                     f"der({name}.mass)",
                     description="Continuous change to the mass (i.e. load change)",

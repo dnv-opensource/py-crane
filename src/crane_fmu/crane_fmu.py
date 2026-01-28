@@ -138,6 +138,16 @@ class CraneFMU(Model, Crane):
         if not hasattr(self, boom.name):
             setattr(self, boom.name, boom)
 
+    def exit_initialization_mode(self):
+        """Initialize the model after initial variables are set.
+        It is important that the crane wire is stabilized after initial boom settings,
+        otherwise it would perform wild initial movements.
+        """
+        self.dirty_do()  # run on_set on all dirty variables
+        wire = self.boom0[-1]
+        if wire is not None and wire.q_factor != 0:
+            wire.pendulum_relax()
+
     def do_step(self, current_time: float, step_size: float) -> bool:
         status = Model.do_step(self, current_time, step_size)
         Crane.do_step(self, current_time, step_size)
@@ -167,7 +177,7 @@ class Animation:
     def __init__(
         self,
         crane: Crane,
-        elements: dict[str, list] | None = None,
+        elements: dict[str, Any] | None = None,
         interval: float = 0.1,
         figsize: tuple[float, float] = (9, 9),
         xlim: tuple[float, float] = (-10, 10),
@@ -188,7 +198,7 @@ class Animation:
         ax.set_ylim(*ylim)
         ax.set_zlim(*zlim)
         ax.view_init(elev=viewAngle[0], azim=viewAngle[1], roll=viewAngle[2])
-        sub: list[list] = [[], [], []]
+        sub: list[list[float]] = [[], [], []]
         if isinstance(self.elements, dict):
             for b in self.crane.booms():  # walk along the series of booms
                 if "booms" in self.elements:  # draw booms
@@ -228,9 +238,9 @@ class Animation:
                     )
                 )
 
-    def update(self, current_time=None):
+    def update(self, current_time: float | None = None):
         """Based on the updated crane, update data as defined in elements."""
-        sub: list[list] = [[], [], []]
+        sub: list[list[float]] = [[], [], []]
         assert isinstance(self.elements, dict), "elements dict required at this stage"
         for i, b in enumerate(self.crane.booms()):
             if "booms" in self.elements:

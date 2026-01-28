@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 from shutil import rmtree
+from typing import Any
 
 import pytest
 
@@ -87,10 +88,10 @@ def logger() -> logging.Logger:
     return logging.getLogger()
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: Any):
     parser.addoption("--show", action="store", default=False)
 
 
 @pytest.fixture(scope="session")
-def show(request):
+def show(request: Any):
     return request.config.getoption("--show") == "False"

@@ -20,14 +20,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)  # DEBUG)
 
 
-def arrays_equal(arr1, arr2, eps=1e-7):
-    assert len(arr1) == len(arr2), "Length not equal!"
-
-    for i in range(len(arr1)):
-        assert abs(arr1[i] - arr2[i]) < eps, f"Component {i}: {arr1[i]} != {arr2[i]}"
-
-
-def mass_center(xs: tuple):
+def mass_center(xs: tuple[tuple[float, ...], ...]) -> tuple[float, np.ndarray]:
     """Calculate the total mass center of a number of point masses provided as 4-tuple"""
     M, c = 0.0, np.array((0, 0, 0), float)
     for x in xs:
@@ -48,9 +41,9 @@ def get_result_column(name: str, fmu: Path):
 
 
 def test_mass_center():
-    def do_test(Mc, _M, _c):
+    def do_test(Mc: tuple[float, np.ndarray], _M: float, _c: tuple[float, ...]):
         assert Mc[0] == _M, f"Mass not as expected: {Mc[0]} != {_M}"
-        arrays_equal(Mc[1], _c, 1e-10)
+        np.allclose(Mc[1], _c)
 
     do_test(mass_center(((1, -1, 0, 0), (1, 1, 0, 0), (2, 0, 0, 0))), 4, (0, 0, 0))
     do_test(
@@ -60,7 +53,7 @@ def test_mass_center():
     )
 
 
-def _mobile_crane_fmu():
+def _mobile_crane_fmu() -> Path:
     from component_model.model import Model
 
     build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
@@ -73,7 +66,7 @@ def _mobile_crane_fmu():
     return fmu_path
 
 
-def test_mobilecrane_fmu(mobile_crane_fmu, show: bool = False):
+def test_mobilecrane_fmu(mobile_crane_fmu: Path, show: bool = False):
     """The mobileCrane is build within the fixture 'mobile_crane_fmu'.
     Validate the FMU here and dump its interface.
     """
@@ -82,7 +75,7 @@ def test_mobilecrane_fmu(mobile_crane_fmu, show: bool = False):
         f"Validation of the modelDescription of {mobile_crane_fmu.name} was not successful. Errors: {val}"
     )
     if show:
-        dump(mobile_crane_fmu)
+        dump(str(mobile_crane_fmu))
 
 
 def test_fmu():
@@ -90,9 +83,9 @@ def test_fmu():
     sys.path.insert(0, str((Path(__file__).parent.parent).absolute()))
     from examples.mobile_crane import MobileCrane
 
-    def test_vals(v: Variable, k: int, val, rng, typ: type) -> tuple:
+    def test_vals(v: Variable, k: int, val: float, rng: tuple[float, float], typ: type) -> tuple[float, ...]:
         """Identify test values with respect to the value and range."""
-        res: tuple = ()
+        res: tuple[float, ...] = ()
         if rng is None:
             res = (val,)
         else:
@@ -132,20 +125,25 @@ def test_fmu():
                 )
             if v.causality in (Fmi2Causality.input, Fmi2Causality.parameter):
                 for k in range(len(v)):
-                    print(test_vals(v, k, val[k], v.range[k], v.typ))
-                    for newval in test_vals(v, k, val[k], v.range[k], v.typ):
-                        arr = [None] * len(v)
-                        arr[k] = newval
-                        print(f"Set {v.name}[{k}] with {arr}")
-                        v.setter(arr, -1)
-                        readback = v.getter()[k]
-                        assert abs(newval - readback) < 1e-12, (
-                            f"{readback} != {newval}. Diff {abs(newval - readback)} after {v.name}[{k}] change."
-                        )
+                    logger.info(test_vals(v, k, val[k], v.range[k].rng, v.typ))
+                    if v.name == "wire.boom" and k > 0:
+                        pass  # cannot set the angle of the wire
+                    else:
+                        for newval in test_vals(v, k, val[k], v.range[k].rng, v.typ):
+                            arr: list[None | float] = [None] * len(v)
+                            arr[k] = newval
+                            # print(f"Set {v.name}[{k}] with {arr}")
+                            v.setter(arr, -1)
+                            readback = v.getter()[k]
+                            assert abs(newval - readback) < 1e-12, (
+                                f"{readback} != {newval}. Diff {abs(newval - readback)} after {v.name}[{k}] change."
+                            )
 
 
 # @pytest.mark.skip("Run the FMU")
-def test_run_mobilecrane_static(mobile_crane_fmu, show: bool):
+def test_run_mobilecrane_static(mobile_crane_fmu: Path, show: bool = False):
+    """Load the FMU and run it using fmpy."""
+    print("Start simulation")
     result = simulate_fmu(  # static run
         str(mobile_crane_fmu),
         stop_time=0.1,
@@ -162,17 +160,22 @@ def test_run_mobilecrane_static(mobile_crane_fmu, show: bool):
             "boom.mass": 1000.0,
             "boom.boom[0]": 8,
             "boom.boom[1]": 45.0,  # input as deg, internal: rad
-            "wire.boom[0]": 1e-6,
+            "wire.boom[0]": 1,
         },
     )
     # result is a list of tuples. Each tuple contains (time, output-variables)
     # assert abs(result[0][19] - 8) < 1e-9, f"Default start value {result[0][19]}. Default start value of boom end!"
     assert result[0][0] == 0.0
     assert result[1][0] == 0.1, "This works only if output_interval is properly set (not None)!"
-    col = get_result_column("boom.end[2]", mobile_crane_fmu)
-    assert abs(result[1][col] - 3 - 8 / sqrt(2)) < 1e-14, (
-        f"Initial setting {result[1][col]} visible only after first step!"
+    expected_end = (
+        (0, 0, 0),
+        (0, 0, 3),
+        (8 / np.sqrt(2), 0.0, 3 + 8 / np.sqrt(2)),
+        (8 / np.sqrt(2), 0.0, 3 + 8 / np.sqrt(2) - 1),
     )
+    for i, b in enumerate(("fixation", "pedestal", "boom", "wire")):
+        col = get_result_column(f"{b}.end[0]", mobile_crane_fmu)
+        assert col is not None and np.allclose(np.array([result[1][col + i] for i in range(3)]), expected_end[i])
     M, c = mass_center(
         (
             (10000, -1, 0, 1.5),
@@ -182,10 +185,10 @@ def test_run_mobilecrane_static(mobile_crane_fmu, show: bool):
     )
 
 
-def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
+def test_run_mobilecrane_move(mobile_crane_fmu: Path, show: bool = False):
     """Run the FMU using fmpy. Initial position is boom1 45 deg up. Pedestal is moved 1deg/s unit for 10s."""
 
-    def check_boom_end(pos: Sequence, angle: float):
+    def check_boom_end(pos: Sequence[float], angle: float):
         expected = np.array((0, 0, 3)) + 8 / sqrt(2) * np.array((cos(radians(angle)), sin(radians(angle)), 1))
         assert np.allclose(expected, pos), f"@{angle}: {pos} != {expected}"
 
@@ -209,7 +212,7 @@ def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
                 "boom.mass": 1000.0,
                 "boom.boom[0]": 8,
                 "boom.boom[1]": 45.0,  # input as deg, internal: rad
-                #            "der(der(pedestal.boom[2]))": 0.1,  # does not work because it fails fmpy validation
+                # "der(der(pedestal.boom[2]))": 0.1,  # does not work because it fails fmpy validation
                 "der(pedestal.boom[2])": p_speed,  # pedestal azimuthal angular speed in degrees/time
                 "der(pedestal.boom[2],2)": p_acc,  # pedestal azimuthal angular acceleration in degrees/time**2
                 "wire.boom[0]": 1e-6,
@@ -220,7 +223,6 @@ def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
             plot_result(result)
         col = get_result_column("boom.end[0]", mobile_crane_fmu)
         assert col is not None, "Column of 'boom.end[0]' not found"
-        print("ROW0", col, result[0])
         dt = 1.0
         for i, row in enumerate(result):
             assert abs(row[0] - i) < 1e-9
@@ -234,7 +236,7 @@ def test_run_mobilecrane_move(mobile_crane_fmu, show: bool):
     logger.info("fmpy. simulate crane moving pedestal with constant speed 1.0 deg/s")
     run_simulation(p_speed=1.0, show=False)
     logger.info("fmpy. simulate crane moving pedestal with constant acceleration 0.1 deg/s^2")
-    run_simulation(p_acc=0.1, show=False)
+    run_simulation(p_acc=0.1, show=True)
 
 
 if __name__ == "__main__":

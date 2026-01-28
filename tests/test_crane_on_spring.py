@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)  # DEBUG)
 
 
-def do_plot(time: list, traces: tuple, data: dict, title: str = "CraneOnSpring"):
+def do_plot(time: list[float], traces: tuple[str, ...], data: dict[str, list[float]], title: str = "CraneOnSpring"):
     """Plot selected 'traces' from the 'data' repository, with 'title'."""
     fig, ax = plt.subplots()
     for k, v in data.items():
@@ -37,7 +37,7 @@ def mobile_crane_fmu():
     return _get_fmu("MobileCrane.fmu")
 
 
-def make_fmu(build_path: Path, source: str, resource: Path, newargs: dict | None = None):
+def make_fmu(build_path: Path, source: str, resource: Path, newargs: dict[str, Any] | None = None):
     """Make single FMU. Non-default arguments allowed."""
     build_path.mkdir(exist_ok=True)
     fmu = Model.build(
@@ -148,7 +148,7 @@ def ensure_subpath(pkg: str, folder: str) -> bool:
 
 def make_crane_on_spring(
     pM: float = 10000.0,  # in kg
-    pCoM: tuple = (0.5, -1.0, 0.8),  # in m
+    pCoM: tuple[float, ...] = (0.5, -1.0, 0.8),  # in m
     pH: float = 3.0,  # in m
     bM: float = 1000.0,  # in kg
     bL: float = 8.0,  # in m
@@ -156,11 +156,11 @@ def make_crane_on_spring(
     wM: float = 50.0,  # in kg
     wL: float = 1e-6,
     wQ: float = 50.0,  # dimensionless quality factor
-    k: tuple = (1e4,) * 6,
-    c: tuple = (0,) * 6,
+    k: tuple[float, ...] = (1e4,) * 6,
+    c: tuple[float, ...] = (0,) * 6,
     m: float = 1e4,
-    x0: tuple = (0.0,) * 6,
-    v0: tuple = (0.0,) * 6,
+    x0: tuple[float, ...] = (0.0,) * 6,
+    v0: tuple[float, ...] = (0.0,) * 6,
 ):
     """Initialize and return crane, force and oscillator."""
 
@@ -218,7 +218,7 @@ def test_crane_on_spring(show: bool = False):
 
     def do_experiment(
         pM: float = 10000.0,
-        pCoM: tuple = (0.5, -1.0, 0.8),
+        pCoM: tuple[float, ...] = (0.5, -1.0, 0.8),
         pH: float = 3.0,
         bM: float = 1000.0,
         bL: float = 8.0,
@@ -226,28 +226,30 @@ def test_crane_on_spring(show: bool = False):
         wM: float = 50.0,
         wL: float = 1e-6,
         wQ: float = 50.0,
-        k: tuple = (1e4,) * 6,
-        c: tuple = (0,) * 6,
+        k: tuple[float, ...] = (1e4,) * 6,
+        c: tuple[float, ...] = (0,) * 6,
         m: float = 1e4,
-        x0: tuple = (0.0,) * 6,
-        v0: tuple = (0.0,) * 6,
+        x0: tuple[float, ...] = (0.0,) * 6,
+        v0: tuple[float, ...] = (0.0,) * 6,
         title: str = "Experiment",
         show: bool = show,
     ):
         crane, force, osc = make_crane_on_spring(pM, pCoM, pH, bM, bL, bA, wM, wL, wQ, k, c, m, x0, v0)
 
-        results: dict = {}
+        results: dict[str, list[float]] = {}
         for i in range(3):
             results.update({f"boom.end[{i}]": [], f"f[{i}]": [], f"v[{i}]": []})
-        times: list = []
+        times: list[float] = []
         t = 0.0
         dt = 0.01
+        _boom = crane.boom_by_name("boom")
+        assert _boom is not None, "Expect 'boom' to exist"
         while t <= 3.145:  # 10.0:
             t += dt
             times.append(t)
             osc.do_step(t, dt)  # takes updated force, x and v and calculates updated x and v
             for i in range(3):
-                results[f"boom.end[{i}]"].append(crane.boom_by_name("boom").end[i])
+                results[f"boom.end[{i}]"].append(_boom.end[i])
                 results[f"f[{i}]"].append(osc.force.out[i])
                 results[f"v[{i}]"].append(osc.v[i])
 
@@ -259,8 +261,8 @@ def test_crane_on_spring(show: bool = False):
         if show:
             do_plot(times, ("boom.end[0]", "boom.end[1]", "boom.end[2]", "f[1]", "v[1]"), results, title)
 
-    # do_experiment(m=1e4, c=(0.5,) * 6, pCoM=(0.5, 0, 0), bA=np.radians(180), title="Straight crane", show=show)
-    do_experiment(m=1e4, c=(0.5,) * 6, pCoM=(0.5, 0, 0), bA=np.radians(90), title="90deg boom crane", show=show)
+    do_experiment(m=1e4, c=(0.5,) * 6, pCoM=(0.5, 0, 0), bA=np.radians(180), title="Straight crane", show=show)
+    # do_experiment(m=1e4, c=(0.5,) * 6, pCoM=(0.5, 0, 0), bA=np.radians(90), title="90deg boom crane", show=show)
 
 
 def test_controlled_crane_on_spring(show: bool = False):
@@ -321,10 +323,10 @@ if __name__ == "__main__":
     'test_mobile_crane_*.py' for the crane
     'test_oscillator_6dof_fmu.py' from the component-model package for the oscillator
     """
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     # make_fmus()
     # make_mobile_crane_straight()
     # test_mobilecrane(show=True)
     # test_crane_on_spring( show=True)
-    test_controlled_crane_on_spring(show=True)
+    # test_controlled_crane_on_spring(show=True)

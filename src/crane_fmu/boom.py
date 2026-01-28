@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     import crane_fmu.crane
 
 # Type Alias for a 1-dim array with 3 elements. Used throughout the code to denote 3D vectors.
-TVector: TypeAlias = np.ndarray[tuple[int,...], np.dtype[np.float64]]
+TVector: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +156,7 @@ class Boom(object):
         # rot denotes the rotation which turns (0,0,1) into the direction
         self._rot: Rot = Rot.identity() if self.anchor0 is None else self.anchor0._rot * rot_from_spherical(boom[1:])
         self.direction = self._rot.apply((0.0, 0.0, 1.0))
-        self._new_len : float | None # place holder for length changes
+        self._new_len: float | None  # place holder for length changes
         # self._c_m = np.array( (0.0, 0.0, 0.0), dtype=np.float64) # just to make _c_m known. Updated by method c_m
         # save the current value, running method self.c_m
         self._c_m: TVector = self.c_m
@@ -201,9 +201,9 @@ class Boom(object):
                 b = b.anchor0
             return b
 
-    #     @property
-    #     def boom(self):
-    #         return getattr(self._model, self._name + ".boom")  # access to value (owned by model)
+    # @property
+    # def boom(self):
+    #     return getattr(self._model, self._name + ".boom")  # access to value (owned by model)
 
     def rot(self, newval: Rot | None = None) -> Rot:
         """Access the rotation object from outside the boom.
@@ -223,10 +223,9 @@ class Boom(object):
 
         Args:
             val (array-like): new value of boom. Elements of the array can be set to None (keep value)
-            ch (int) = 0: track change type, or set it initially to force a type of change
+            ch (int) = 0: track change type or set it initially to force a type of change,
         """
         assert hasattr(self, "boom"), f"self.boom of {self.name} not yet initialized. Unexpected!"
-        # Note: length change (boom[0]) are approximated not to change direction
         for i, v in enumerate(val):
             if v is not None and not isnan(v) and v != self.boom[i]:
                 if i == 0 and Change.POS not in Change(ch):
@@ -317,7 +316,7 @@ class Boom(object):
         if self.anchor1 is not None:
             self.anchor1.update_child(change)
 
-    def translate(self, vec: tuple | np.ndarray, cnt: int = 0):
+    def translate(self, vec: tuple[float, ...] | np.ndarray, cnt: int = 0):
         """Translate the whole crane. Can obviously only be initiated by the first boom."""
         if isinstance(vec, tuple):
             vec = np.array(vec, float)
@@ -492,33 +491,36 @@ class Boom(object):
             else:
                 l_fac = (self._new_len / self.length - 1.0) / dt
             R = self.mass_center[0] * self.length  # pendulum radius wrt. center of mass
-            r2 = R * R
-            g = np.array((0.0, 0.0, -9.81), float)
-            r = R * self.direction
-            v = self.r_v
-            sol = solve_ivp( # type: ignore
-                ivp_fun,
-                t_span=[0, dt],
-                y0=np.append(r, v),
-                method="RK45",  # BDF',
-                args=(r2, g, dr_dt, l_fac),  # square radius (wrt. CoM) and g (vector) as additional argument
-                atol=self.tolerance,
-            )
-            assert sol.status == 0, f"Pendulum solver did not succeed with dt:{dt}. Status:{sol.status}"
-            y_t = sol.y[:, -1]  # last column
-            position = y_t[:3] if dr_dt is None else y_t[:3] + dr_dt * dt  # position of CoM relative to origin
-            self.r_v = y_t[3:] if dr_dt is None else y_t[3:] + dr_dt
-            if dt >= self._damping_time:  # pendulum stops within dt
-                self.r_v = np.array((0, 0, 0), float)
-            else:
-                self.r_v *= 1 - dt / self._damping_time  # see note
+            if R > 1e-6:
+                r2 = R * R
+                g = np.array((0.0, 0.0, -9.81), float)
+                r = R * self.direction
+                v = self.r_v
+                sol = solve_ivp(  # type: ignore
+                    ivp_fun,
+                    t_span=[0, dt],
+                    y0=np.append(r, v),
+                    method="RK45",  # BDF',
+                    args=(r2, g, dr_dt, l_fac),  # type: ignore[reportArgumentType]  ## according to spec
+                    atol=self.tolerance,
+                )
+                assert sol.status == 0, f"Pendulum solver did not succeed with dt:{dt}. Status:{sol.status}"
+                y_t = sol.y[:, -1]  # last column
+                position = y_t[:3] if dr_dt is None else y_t[:3] + dr_dt * dt  # position of CoM relative to origin
+                self.r_v = y_t[3:] if dr_dt is None else y_t[3:] + dr_dt
+                if dt >= self._damping_time:  # pendulum stops within dt
+                    self.r_v = np.array((0, 0, 0), float)
+                else:
+                    self.r_v *= 1 - dt / self._damping_time  # see note
 
-            self.direction = normalized(position)
-            rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom
-            self.boom[1:] = cartesian_to_spherical(rel_direction)[1:]
+                self.direction = normalized(position)
+                rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom
+                self.boom[1:] = cartesian_to_spherical(rel_direction)[1:]
+                self._c_m = position
+            elif l_fac is not None:
+                self.boom[0] = self._new_len
             self._new_len = None
             self.origin = self.anchor0.end
-            self._c_m = position
             self._c_m_sub = (self.mass, self.origin + self.c_m)
             # print(f"origin:{self.origin[0]}, d_end:{self.end[0]-self.origin[0]}, speed:{self.r_v[0]}")
 
@@ -542,7 +544,7 @@ class Boom(object):
             self._rot = rot_from_vectors(crane_dir, self.direction)
             self.model.calc_statics_dynamics()
 
-    def _calc_decayrate(self, newLength) -> float:
+    def _calc_decayrate(self, newLength: float) -> float:
         if self.q_factor == 0.0:
             return nan
         elif newLength == 0.0:
