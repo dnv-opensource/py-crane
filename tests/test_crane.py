@@ -225,8 +225,8 @@ def test_animate_pendulum(show: bool = False):
         return
     anim = AnimatePendulum(
         length=10.0,
-        angles=(180, 0),  # (90,0),
-        v0=np.array((0, 1.0, 0), float),  # 1.0,0), float),
+        angles=(90, 0),
+        v0=np.array((0.2, 1.0, 0), float),  # 1.0,0), float),
         t_end=30.0,
         dt=0.01,
         q_factor=50,

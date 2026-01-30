@@ -25,41 +25,62 @@ TVector: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 logger = logging.getLogger(__name__)
 
 
-class BoomInitError(Exception):
-    """Special error indicating that something is wrong with the boom definition."""
-
-    pass
-
-
-class BoomOperationError(Exception):
-    """Special error indicating that something went wrong during boom operation (rotations, translations,calculation of CoM,...)."""
-
-    pass
-
-
 class Boom(object):
-    """Basic Boom model object, representing one element of a crane,
-    modelled as stiff rod with length, mass, mass-center and given degrees of freedom.
+    r"""Basic Boom model object, representing one element of a crane,
+    modelled as stiff rod with length, mass and mass-center.
 
-    Alternative to instantiating a Boom by calling its `__init__()` ,
-    the `add_boom()` method of the crane can be called.
-    In this case the `model` and `anchor0` parameters (see below) shall not be included (are automatically added).
+    .. assumption:: All booms of the crane are completely stiff, excluding bending, stretching and vibration
+      modes of motion. This includes also loose conncetions, i.e. the wire is assumed straight and without stretch.
+
+    .. assumption:: Per default, the mass center of a boom is located at the geometric center of the boom.
+      This can be changed using the tuple form of the :py:attr:`mass_center` parameter.
+
+    .. limitation:: The degrees of freedom for the boom (possible ranges in which changes of parameters are allowed)
+      cannot be directly defined within the basic Boom object.
+      These can be defined as part of the `Variable` definitions when packaging a crane as FMU,
+      see :doc:`crane_fmu.crane_fmu` and :doc:`crane_fmu.boom_fmu`.
+      Alternatively the control module from the package ``component-model`` can be used to define control goals,
+      which also includes limits on value, change of value and acceleration of value.
+
+    .. assumption:: All units are assumed as basic units (meter, radian, kg).
+      Additional display units can be defined when packaging a crane as FMU.
+
+    Alternative to instantiating a Boom as :py:class:`Boom` (...),
+    :py:meth:`.Crane.add_boom` of the related crane can be called (recommended).
+    In this case the parameters ``model`` and ``anchor0`` to :py:class:`Boom` shall not be included (are automatically added).
+
+    There are two fundamentally different types of booms
+
+    stiff connection boom (:py:attr:`q_factor` =0):
+        The spherical angles with respect to the previous boom can only be changed through new settings.
+    loose connection boom(:py:attr:`q_factor` >0):
+        The joint to the previous boom is loose and the boom can move freely in all spherical directions,
+        i.e. it represents a wire, exhibiting pendulum movement with respect to the local center of mass.
+        :py:attr:`q_factor` serves at the same time as a definition of the pendulum damping.
 
     Basic boom movements are
 
-    * Rotation: active rotation around the hinge, obeying the defined degrees of freedom, or passive initiated by parent booms (around their hinge)
-    * Translation: the boom is moved linearly, due to linear movement of the hinge
-    * length change: length change of booms (e.g. wire) can be one defined degree of freedom. It is similar to translation, but the hinge does not move, only the end.
-    * mass change: mass change of booms (e.g. add or remove load) can be one defined degree of freedom.
-    * Note: all booms .origin coordinates are fixed to eachother unless self.boom is changed.
-      Thus, velocity and acceleration are common and are therefore related to the crane.
+    length change, i.e. :py:meth:`.boom_setter` ( (new-length, None, None))
+        instantaneously sets a new length to the boom and updates all children booms so that they are properly connected.
+    rotation, i.e. `.boom_setter` ( (None, new-polar, new-azimuth))
+        instantaneously rotates the boom around its origin.
+        The reference direction is the direction of the parent boom (i.e. as if the parent boom was in z-direction).
+        Successively all child booms are updated (i.e. rotated accordingly) to obey the stiffness of the crane.
+        Note that loose connection booms are not allowed to rotate actively,
+        since that would interfere with pendulum movement.
+    mass change, i.e. `.mass`:
+      instantanteous mass change of boom (e.g. add or remove load).
+      Note that instantaneous changes make sense in this case, since loads are changed instantaneously
+      and since wire bending is not modelled.
 
     After any movement
 
-    * the internal variables (center of mass, positions, etc.) are re-calculated,
+    * the internal variables (center of mass, positions, etc.) are re-calculated
+      using :py:meth:`calc_statics_dynamics`. If `dt=None` instantaneous changes are assumed.
     * the attached booms are moved in accordance
     * and the center of mass of the sub-system (the boom with attached booms) is re-calculated.
-    * Finally the parent booms are informed about the change of the sub-system center of mass, leading to re-calculation of their internal variables.
+    * Finally the parent booms are informed about the change of the sub-system center of mass,
+      leading to re-calculation of their internal variables.
 
     .. note:: initialization variables are designed for easy management of parameters,
        while derived internal variables are more complex (often 3D vectors)
@@ -71,17 +92,19 @@ class Boom(object):
         anchor0 (Boom): the boom object to which this Boom is attached.
             There is exactly one boom where this is set to None, which is the crane `fixation`
             and which is automatically provided by the crane, i.e. for real booms this is never None.
-        mass (float): Parameter denoting the (assumed fixed) mass of the boom in kg
-        mass_center (float,tuple): Parameter denoting the (assumed fixed) position of the center of mass of the boom,
+        mass (float): Parameter denoting the mass of the boom in kg.
+          For most booms this is fixed, but when modelling loads as part of the (last) boom this can change.
+        mass_center (float,tuple): Parameter denoting the position of the center of mass of the boom,
             provided as portion of the length (as float).
             Optionally the absolute displacements in x- and y-direction (assuming the boom in z-direction) can be added
             e.g. (0.5,-0.5, 1): (in m) halfway down the boom displaced 0.5m in the -x direction and 1m in the y direction
         boom (tuple): A tuple defining the boom relative to its parent in spherical (ISO 80000) coordinates.
             From the parent boom the following attributes are automatically inferred:
 
-            * origin: end of the parent boom => cartesian origin
+            * origin: end of the parent boom => cartesian coordinate of the base point of the boom
             * pole axis: direction vector of the parent boom => local cartesian z-axis
-            * reference direction in equator plane: crane x-direction or azimuth angle of connecting boom => local cartesian x-axis
+            * reference direction in equator plane:
+              crane x-direction or azimuth angle of connecting boom => local cartesian x-axis
 
             The boom is then defined in local polar coordinates:
 
@@ -95,11 +118,21 @@ class Boom(object):
 
             * if q_factor=0.0, the connection to the parent boom is stiff according to the boom angle setting
             * if q_factor > 0, the crane boom (the wire) is implemented as a stiff rod
-                with a loose connection hanging from the parent boom.
+              with a loose connection hanging from the parent boom.
             * The q_factor denotes the dimensionless quality factor (energy stored/energy lost per radian),
-            which is also equal to `2*ln( amplitude/amplitude next period)`,
-            or `w_d*tau, w_d = sqrt(w_0**2 - b**2), b = 1/(2*tau`, with `tau > 1/(2*w_0)` (w:omega, b:damping),
-            not covering critically and over-damped systems, which are in any case not realistic for crane wires)
+              which is also equal to
+              :math:`2 \ln( A_i/A_{i+1}) = \tau \sqrt{\omega_0^2 - \gamma^2}`,
+              :math:`\gamma = 1/(2 \tau)`,
+              with
+              :math:`\tau > 1/(2\omega_0)`
+              and
+              `A`: Amplitude,
+              :math:`\omega_0=\sqrt{g/L}`: natural angular frequency  of pendulum,
+              :math:`\tau`: characteristic damping time
+              :math:`\gamma`: pendulum damping.
+              This does not cover critically and over-damped systems, which are in any case not realistic for crane wires).
+              In general the `q_factor` is a fixed parameter, but for testing purposes :py:meth:`.damping`
+              is included, which allows changing of related parameters in a consistent way.
 
 
         limits (tuple): Optional tuple of control limits for active boom control. See ControlLimits
@@ -136,7 +169,7 @@ class Boom(object):
         # acc. of CoM relative to .origin (for pendulum)
         self.r_acc: TVector = np.array((0.0, 0.0, 0.0), dtype=np.float64)
         # default animation line width of boom. Can be changed, e.g. 10 pedestal and 2 for wire.
-        self.animationLW: int = 5
+        # self.animationLW: int = 5
         self.origin: TVector
         if self.anchor0 is None:  # this defines the fixation of the crane as a 'pseudo-boom'
             boom = (1e-10, 0.0, 0.0)  # z-axis in spherical coordinates
@@ -164,7 +197,7 @@ class Boom(object):
             self.mass,
             self._c_m,
         )  # updated by calc_statics_dynamics
-        _ = self.damping(q_factor=self.q_factor)  # pre-calculate self._damping_time for usage in _pendulum
+        _ = self.damping(q_factor=self.q_factor)  # pre-calculate self._damping_time for usage in pendulum
         # self.control = Control( ('len','polar','azimuth'), limits) # control object (without goals)
         self.calc_statics_dynamics(dt=None)
         logger.info(f"BOOM {self._name} {self.origin}->{self.end}. |{self.length} | {self.direction} | {self.q_factor}")
@@ -250,18 +283,22 @@ class Boom(object):
 
     @property
     def model(self):
+        """Get the Crane object which this boom is connected to."""
         return self._model
 
     @property
     def name(self):
+        """Get the unique (within the crane) name of the boom."""
         return self._name
 
     @property
     def length(self) -> np.floating:
+        """Extract the length parameter from .boom."""
         return self.boom[0]
 
     @property
     def end(self) -> TVector:
+        """Calculate the cartesian coordinates of the end of the boom from .origin, .length and .direction."""
         return self.origin + self.length * self.direction
 
     @property
@@ -285,7 +322,7 @@ class Boom(object):
         """
         if self.q_factor != 0.0:
             assert self.anchor0 is not None, "Flexible first booms are so far not implemented"
-            # pre-calculated loss term used in ._pendulum()
+            # pre-calculated loss term used in .pendulum()
             if q_factor is not None:
                 self.q_factor = q_factor
                 self._damping_time = sqrt(self.length / 9.81 * (self.q_factor**2 + 0.25))
@@ -315,15 +352,6 @@ class Boom(object):
 
         if self.anchor1 is not None:
             self.anchor1.update_child(change)
-
-    def translate(self, vec: tuple[float, ...] | np.ndarray, cnt: int = 0):
-        """Translate the whole crane. Can obviously only be initiated by the first boom."""
-        if isinstance(vec, tuple):
-            vec = np.array(vec, float)
-        if cnt > 0 or self.anchor0 is None:  # can only be initiated by base!
-            self.origin += vec
-            if self.anchor1 is not None:
-                self.anchor1.translate(vec, cnt + 1)
 
     @property
     def torque(self):
@@ -372,7 +400,7 @@ class Boom(object):
                 self._c_m_sub = (self.mass, self.origin + self.c_m)
                 self._pendulum_instantaneous()
             else:
-                self._pendulum(dt)
+                self.pendulum(dt)
         else:
             if self.anchor1 is None or self.anchor1.anchor1 is None:  # there are no attached booms or attached wire
                 # assuming that _c_m is updated. Note that _c_m_sub is a global vector
@@ -414,17 +442,38 @@ class Boom(object):
         self.origin = self.anchor0.end
         self._rot = self.anchor0.rot() * rot_from_spherical(self.boom)
 
-    def _pendulum(self, dt: float):
+    def pendulum(self, dt: float):
         r"""For a non-stiff connection, if the _c_m is not exactly below origin, the _c_m acts as a damped pendulum.
 
-        See Also
-        --------
-           `wikipedia <https://de.wikipedia.org/wiki/Sph%C3%A4risches_Pendel>`_
-           (the English article is not as good) for detailed formulas
-        `with respect to q_factor: <https://en.wikipedia.org/wiki/q_factor>`_
-        Note: falling movements (i.e. wire acceleration larger than g) are not allowed (raise error).
+        More detailed information on Spherical pendulum and Q-factor:
+        * `Sphärisches Pendel <https://de.wikipedia.org/wiki/Sph%C3%A4risches_Pendel>`_
+        (the English article is not as good) for detailed formulas
+        * `q_factor: <https://en.wikipedia.org/wiki/q_factor>`_
 
-        Pendulum movements are integrated into calc_statics_dynamics if non-stiff boom connection (q_factor!=0).
+        .. limitation:: Falling movements (i.e. wire acceleration larger than g) are not allowed (raise error).
+
+        .. assumption:: The center of mass is on the boom line at mass_center[0] relative distance from origin.
+
+        .. limitation:: Damping implemented as reduction on speed, which is accurate only over whole period,
+          since potential enery is not included.
+          Note also that damping_time is defined as damping on energy, not on amplitude!
+
+        The following differential equation is used for pendulum movement
+
+        .. math::
+
+            \ddot{\vec{r}} = -\frac{\vec{r} \times (\vec{r} \times \vec{g})}{R^2} - \frac{\dot{\vec{r}}^2}{R^2} \vec{r}
+
+        covering general spherical pendulum movement. For the crane we get the additional complications,
+        that the pendulum origin may be moving (because the parent boom is moving)
+        or that the length of the pendulum may be changing. To accomodate for that within a time interval :math:`\tau t`
+        the origin is initially left unchanged and is over the time interval :math:`\tau t`
+        moved to the target position (end point of the parent boom).
+        The same strategy is applied to the length of the wire,
+        adapting it to the target length over the time interval :math:`\tau t`.
+
+
+        Pendulum movements are integrated into `.calc_statics_dynamics(dt)` if the connection is non-stiff (q_factor!=0).
 
         Args:
             dt (float): The time interval for which the pendulum movement is calculated
@@ -433,14 +482,6 @@ class Boom(object):
         -------
             updated velocity and acceleration (of c_m)
 
-        .. assumption:: the center of mass is on the boom line at mass_center[0] relative distance from origin
-        .. math::
-
-            \\ddot\vec r=-frac{\vec r \\cross (\vec r \\ cross \vec g)}{R^2} - frac{\\dot\vec r^2}{R^2} \vec r
-        .. note::
-            Damping implemented as reduction on speed, which is accurate only over whole period,
-            since potential enery is not included.
-            Note also that damping_time is defined as damping on energy, not on amplitude!
         """
 
         def ivp_fun(t: float, y: np.ndarray, r2: float, g: np.ndarray, dr_dt: np.ndarray | None, l_fac: float | None):
@@ -470,7 +511,7 @@ class Boom(object):
             #     v += dr_dt
             return np.append(v, self.r_acc)
 
-        assert self.anchor0 is not None, f"_pendulum() called on fixation {self.name}"
+        assert self.anchor0 is not None, f"pendulum() called on fixation {self.name}"
         assert self.q_factor != 0.0, f"pendulum() called on fixed boom {self.name}"
         if (
             (

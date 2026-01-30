@@ -168,14 +168,14 @@ def test_run_mobilecrane_static(mobile_crane_fmu: Path, show: bool = False):
     assert result[0][0] == 0.0
     assert result[1][0] == 0.1, "This works only if output_interval is properly set (not None)!"
     expected_end = (
-        (0, 0, 0),
-        (0, 0, 3),
-        (8 / np.sqrt(2), 0.0, 3 + 8 / np.sqrt(2)),
-        (8 / np.sqrt(2), 0.0, 3 + 8 / np.sqrt(2) - 1),
+        (0, 0, 3),  # pedestal
+        (8 / np.sqrt(2), 0.0, 3 + 8 / np.sqrt(2)),  # boom
+        (8 / np.sqrt(2), 0.0, 3 + 8 / np.sqrt(2) - 1),  # wire
     )
-    for i, b in enumerate(("fixation", "pedestal", "boom", "wire")):
+    for i, b in enumerate(("pedestal", "boom", "wire")):
         col = get_result_column(f"{b}.end[0]", mobile_crane_fmu)
-        assert col is not None and np.allclose(np.array([result[1][col + i] for i in range(3)]), expected_end[i])
+        assert col is not None, f"Variable {b}.end[0] not found"
+        assert np.allclose(np.array([result[1][col + i] for i in range(3)]), expected_end[i])
     M, c = mass_center(
         (
             (10000, -1, 0, 1.5),

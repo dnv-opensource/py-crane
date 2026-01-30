@@ -44,8 +44,13 @@ extensions = [
     "spec",
     "sphinx.ext.graphviz",
     "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.intersphinx",
     # "sphinx.ext.autosectionlabel",
 ]
+
+intersphinx_mapping = {
+    #    "component-model": ("https://github.com/dnv-opensource/component-model/", None),
+}
 
 # Extenstion for myst_parser
 myst_enable_extensions = [

@@ -18,14 +18,15 @@ CoordinateTransform: TypeAlias = Callable[
 
 
 class Crane(object):
-    """A basic crane model object for mounting on fixed and movable structures.
+    """A basic crane model object for mounting on fixed or movable structures.
 
-    The crane consists of stiff booms (see boom.py), which are connected to each other through
+    The crane consists of stiff booms (see `boom.py`), which are connected to each other through
 
-    * stiff connection (`damping=0`): The polar angle in direction of the previous boom can only be changed through new settings.
-    * loose connection (`damping>0`): The joint to the previous boom is loose
-       and the boom can move freely in all polar directions, i.e. it represents a wire,
-       exhibiting pendulum movement with respect to the local center of mass.
+    stiff connection (`q_factor=0`):
+        The angles with respect to the previous boom can only be changed through new settings.
+    loose connection (`damping>0`):
+        The joint to the previous boom is loose and the boom can move freely in all spherical directions,
+        i.e. it represents a wire, exhibiting pendulum movement with respect to the local center of mass.
 
     The basic boom `fixation` is automatically added and accessible through `.boom0`.
     Initially the direction of the fixation is set to 'up' (z-axis).
@@ -34,25 +35,52 @@ class Crane(object):
     of the crane with respect to its initial orientation.
 
     The crane should first be instantiated and then the booms added, using `.add_boom()` .
-    Added booms can be accessed through the `.booms(reverse=False)` iterator.
+    Added booms can be accessed through the `.booms()` iterator from fixation to last boom
+    or in reverse direction (`.booms(reverse=True`).
+    In addition the function `.boom_by_name(boom-name)` is available to get access to a Boom object of the crane.
 
-    The position of the fixation with respect to the structure where the crane is mounted does not concern the crane.
-    For moveable structures (e.g. vessels) it turns out that the crane needs to know
+    The position and the orientation of the crane with respect to the fixation can be changed.
+    For cranes mounted on clompletely fixed platforms, these settings never change,
+    but for cranes mounted on moveable structures (e.g. vessels) they the following effects:
 
-    * the linear acceleration (change of velocity) of the structure, i.e `d_velocity`,
-       since the acceleration leads to a force and the pendulum movement of loosely connected booms is affected.
-       Consequently, the crane needs to keep track of the velocity of its mounting structure,
-       even if it is fixed to it.
-    * the angular direction of the fixation with respect to the initial direction, i.e. `orientation` (see above).
-    * the booms use polar coordinates for their direction, defined with respect to the direction of the previous boom.
+    linear acceleration of the structure, i.e `d_velocity`
+        The acceleration leads to a force on the fixation and the pendulum movement of loosely connected booms is affected.
+        The `.position` and `.velocity` getter and setter functions, together with the property `.d_velocity`
+        provide access to current values. Note that a constant velocity has no effect on the crane.
+    angular direction, i.e. `.angular`
+        The angular direction creates a torque on the fixation.
+        The property getter and setter functions `.angular` facilitate instantaneous setting of the Euler angle
+        of the fixation with respect to the structure. The initial angle is (roll=0,pitch=0,yaw=0).
+        The function `.rotate(euler-angle)` is recommended to be used to
+    angular acceleration, i.e. `.d_angular`
+        Angular direction changes cause both torques and pendulum action.
+        The property getter and setter functions `.d_angular` facilitate instantaneous changes of the Euler angle
+        of the fixation with respect to the structure.
+
+    Instantaneous changes are in general non-physical. In reality changes happen more or less smooth, which implies
+    that changes should be ramped up/down (in principle using infinite orders of derivatives).
+    In practice we limit ourselves to usage of up to second order derivatives,
+    i.e. the assumption that acceleration changes happen instantaneously, or that forces can be applied instantaneously.
+    Since cranes are often driven electrically and since electric motors can deliver high torques rather instantaneously,
+    the approximation seems reasonable.
+
+    The introduction of derivatives introduces the notion of time. The function `.calc_statics_dynamics( dt)`
+    updates all changes (forces, torque, pendulum movement) over the next time interval given the current settings.
+    In simulations this function shall be called as part of every simulation step.
+
+    .. assumption:: The dynamics of changes is simulated to second order, accepting instantaneous acceleration changes.
+
+    Other things to note:
+
+    * The booms use polar coordinates for their direction, defined with respect to the direction of the previous boom.
       This implies that the third direction variable is missing for booms, with the consequence that internal boom torsion
-      cannot be addressed.
-      For fixed booms that is a good approximation,
-      but for the load (i.e. the center of mass of the loose connection) it represents the limitation that the load cannot turn.
-    * all angles inside the crane are in radians. Only when the interface to the outside world is defined as FMU,
-      the possibility exists that parameters, inputs and outputs are in degrees.
+      cannot be addressed. For fixed booms that is a good approximation, but for the load
+      (i.e. the center of mass of the loose connection) it implies the limitation that the load cannot turn.
+    * all angles inside the crane are in radians, lengths are in meters and masses are in kg.
+      Only when the interface to the outside world is defined as FMU,
+      the possibility exists that parameters, inputs and outputs can be defined in other `display units`, e.g. degrees.
     * forces and torque are only calculated in relation to the fixation (the whole crane),
-      not in ralation to moving joints.
+      not in relation to moving joints.
 
     Args:
         to_crane_angle (Callable) = None: Optional possibility to specify a non-default transformation
@@ -216,7 +244,7 @@ class Crane(object):
         """
         if isinstance(rpy, Rot):  # rotation object provided
             self._rot = rpy if absolute else self._rot * rpy
-            angle = self._rot.as_euler("XYZ")
+            self._angular = self._rot.as_euler("XYZ")
         else:  # euler angle provided
             angle = self.to_crane_angle(np.array(rpy, dtype=np.float64))
             rot_angle = Rot.from_euler("XYZ", angle)  # 0: roll, 1: pitch, 2: yaw

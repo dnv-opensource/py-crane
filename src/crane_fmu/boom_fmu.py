@@ -16,118 +16,75 @@ logger = logging.getLogger(__name__)
 
 
 class BoomFMU(Boom):
-    """Boom object, representing one element of a crane,
-    modelled as stiff rod with length, mass, mass-center and given degrees of freedom.
+    """The FMU definitions of a :py:class:`.Boom` -
+    a stiff boom, attached to a parent boom, attached to the ``fixation`` boom of a crane.
 
-    Alternative to instantiating a Boom by calling its `__init__()` ,
-    the `add_boom()` method of the crane can be called.
-    In this case the `model` and `anchor0` parameters (see below) shall not be included (are automatically added).
+    Defines the `FMI interface <https://fmi-standard.org/>`_ of a :py:class:`.Boom`
+    using the ``component_model.variable`` module.
+    :py:class:`BoomFMU` should be instantiated through :py:meth:`.CraneFMU.add_boom`,
+    omitting the ``model`` and ``anchor0`` arguments (these are added automatically).
 
-    Basic boom movements are
+    Here we only list and explain additional arguments and attributes of :py:class:`BoomFMU`.
+    Refer to :py:class:`.Boom` for details on basic Boom arguments, which are also needed here.
 
-    * Rotation: active rotation around the hinge, obeying the defined degrees of freedom, or passive initiated by parent booms (around their hinge)
-    * Translation: the boom is moved linearly, due to linear movement of the hinge
-    * length change: length change of booms (e.g. wire) can be one defined degree of freedom. It is similar to translation, but the hinge does not move, only the end.
-    * mass change: mass change of booms (e.g. add or remove load) can be one defined degree of freedom.
+    For every Boom the following interface variables are defined
 
-    After any movement
-
-    * the internal variables (center of mass, positions, etc.) are re-calculated,
-    * the attached booms are moved in accordance
-    * and the center of mass of the sub-system (the boom with attached booms) is re-calculated.
-    * Finally the parent booms are informed about the change of the sub-system center of mass, leading to re-calculation of their internal variables.
-
-    .. note:: initialization variables are designed for easy management of parameters,
-       while derived internal variables are more complex (often 3D vectors)
+    mass
+        The mass of the boom. If ``mass_range`` is not defined the variable is a fixed parameter,
+        otherwise a continuous input variable (the load).
+    boom
+        The length, polar angle and azimuth angle of the boom.
+        The ``boom_rng`` defines the degrees of freedom for the boom (see below).
+    end
+        The cartesian position of the end point of the boom as read only (output) variable.
+        Continuous change to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin
+    der(<name>.boom) (not defined for the fixation)
+       This is an example of a structured variable facilitating continuous (not abrupt) change the boom parameters.
+    der(der(<name>.boom)) (not defined for fixation
+        Acceleration to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin
+        Another structured variable as aid for boom control.
+    der(<name>.mass) (only if `mass_rng is not None`)
+        Continuous change to the mass (i.e. load change) if abrupt load changes are not desirable.
 
     Args:
-        model (Model): The model object owning the boom.
-        name (str): The short name of the boom (unique within FMU)
-        description (str) = '':  An optional description of the boom
-        anchor0 (Boom): the boom object to which this Boom is attached.
-            There is exactly one boom where this is set to None, which is the crane `fixation`
-            and which is automatically provided by the crane, i.e. for real booms this is never None.
-        mass (float): Parameter denoting the (assumed fixed) mass of the boom
         mass_rng (tuple): Optional range of the mass, if the mass can be changed.
             Normally only the last boom (the wire) has a variable mass (the load).
-        mass_center (float,tuple): Parameter denoting the (assumed fixed) position of the center of mass of the boom,
-            provided as portion of the length (as float).
-            Optionally the absolute displacements in x- and y-direction (assuming the boom in z-direction) can be added
-            e.g. (0.5,'-0.5 m','1m'): halfway down the boom displaced 0.5m in the -x direction and 1m in the y direction
-        boom (tuple): A tuple defining the boom relative to its parent in spherical (ISO 80000) coordinates.
-            From the parent boom the following attributes are automatically inferred:
-
-            * origin: end of the parent boom => cartesian origin
-            * pole axis: direction vector of the parent boom => local cartesian z-axis
-            * reference direction in equator plane: crane x-direction or azimuth angle of connecting boom => local cartesian x-axis
-
-            The boom is then defined in local polar coordinates:
-
-            * length: the length of the boom (in length units)
-            * polar: a rotation angle for a rotation around the negative x-axis (away from z-axis) against the clock.
-            * azimuth: a rotation angle for a rotation around the positive z-axis against the clock.
-
-           :: note..: The boom and its range is used to keep length and local coordinate system up-to-date,
-               while the active work variables are the cartesian origin, direction and length
         boom_rng (tuple): Range for each of the boom components,
             i.e. how much the boom length can be changed and how (much) it can be rotated
-            As normal, range components specified as None denote fixed components.
-            Most booms have only one (rotation) degree of freedom.
-        q_factor (float)=0.0: optional possibility to implement a loose connection between booms.
-
-            * if q_factor=0.0, the connection to the parent boom is stiff according to the boom angle setting
-            * if 0<q_factor<=0.5, the crane boom (the wire) is implemented as a stiff rod
-                with a loose connection hanging from the parent boom.
-
-            The q_factor denotes the dimensionless quality factor (energy stored/energy lost per radian),
-            which is also equal to `2*ln( amplitude/amplitude next period)`, or `pi*frequency*decayTime`
-        animationLW (int)=5: Optional possibility to change the default line width when performing animations.
-            E.g. the pedestal might be drawn with larger and the wire with smaller line width
-
-    With a crane object `crane` , instantiate like:
-
-    .. code-block:: python
-
-       pedestal = crane.add_boom(
-           name ='pedestal',
-           description = "The vertical crane base, on one side fixed to the vessel and
-                          on the other side the pedestal is fixed to it (can rotate around z-axis).
-                          The mass should include all additional items fixed to it, like the operator's cab",
-           mass = '2000.0 kg',
-           mass_center = (0.5, 0,'2 m'),
-           boom = ('5.0 m', 0, '0deg'),
-           boom_rng = (None, (0,'360 deg'), None)
-           )
-
+            As normal, range elements specified as `None` denote fixed components and `()` freely moveable elements.
+            E.g. ( ('1m','50m'), None, ()) denotes a boom which length can be changed in the range 1 to 50 meters,
+            which polar angle is fixed to the initial value and which can be freely rotated around the z-axis.
 
     .. todo:: determine the range of forces
-    .. limitation:: The mass and the mass_center setting of booms is assumed constant. With respect to wire and hook of a crane this means that basically only the mass of the hook is modelled.
-    .. assumption:: Center of mass: `_c_m` is the local mass-center measured relative to origin. `_c_m_sub` is a global quantity
     """
 
     def __init__(
         self,
-        model: Model,
-        name: str,
-        description: str = "",
-        anchor0: Boom | None = None,
-        mass: str = "1 kg",
         mass_rng: tuple[str, str] | None = None,
-        mass_center: float | tuple[float, float, float] = 0.5,
-        boom: tuple[float, float, float] = (1.0, 0.0, 0.0),
         boom_rng: tuple[tuple[Any, Any] | None | Sequence[Never], ...] = tuple(),
-        q_factor: float = 0.0,
         animationLW: int = 5,
         **kwargs: Any,
     ):
         from crane_fmu.crane_fmu import CraneFMU
 
+        model: Model | None = kwargs.get("model", None)
+        assert model is not None, "The 'model' argument is needed when instantiating a Boom"
+        name: str | None = kwargs.get("name", None)
+        assert name is not None, "A unique Boom name is needed when instantiating a Boom"
         self._name = name
         assert isinstance(model, CraneFMU), f"BoomFMU must link to a CraneFMU. Found {type(model)}"
         model.ensure_boom(self)  # ensure that the boom object is registered with the crane
         u_time = model.u_time
         u_length = model.u_length
         u_angle = "deg" if model.degrees else "rad"
+        # make some super-arguments 'visible' direct for usage here
+        description: str = kwargs.get("description", "")
+        anchor0: Boom | None = kwargs.get("anchor0", None)
+        assert anchor0 is not None, "The 'anchor0' argument is needed here. ('fixation' shall be created through Boom)"
+        mass: float = kwargs.get("mass", 1.0)
+        mass_center: float | tuple[float, float, float] = kwargs.get("mass_center", 0.5)
+        boom: tuple[float, float, float] = kwargs.get("boom", (1.0, 0.0, 0.0))
+        q_factor: float = kwargs.get("q_factor", 0.0)
 
         # Interface specifications. When we have the start values we can instantiate the Boom
         _c, _v = ("parameter", "fixed") if mass_rng is None else ("input", "continuous")
@@ -179,7 +136,6 @@ class BoomFMU(Boom):
             mass_center=mass_center,  # this could be made an interface variable in advanced cranes
             boom=getattr(self._boom.owner, self._boom.local_name),  #! not getter()! boom.py uses internal variables!
             q_factor=q_factor,
-            animationLW=animationLW,
         )
         # additional output variables
         self._end = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.

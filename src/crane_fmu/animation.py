@@ -223,13 +223,7 @@ class AnimatePendulum(object):
         self.zs = [self.wire.end[2]]
 
     def update(self, frame: tuple[float, Boom]) -> None:
-        """Receives the frames from FuncAnimation with updated crane objects. Draw the booms as lines."""
-        # TODO @eisDNV:
-        #      Parameter `frame` is, as per my current understanding from reverse-engineering,
-        #      expected to be of type `tuple[float, Crane]`, not `tuple[float, Boom]`.
-        #      It seems, though, that in this method you aim to operate on an object of type `Boom` (variable `wire`).
-        #      Either the type annotation of `frame` should be changed, or you need to extract the `wire` from the `crane` object first, before processing.
-        #      ClaasRostock, 2026-01-23
+        """Receives the frames from FuncAnimation with updated wire objects. Draws the wire as a line."""
         time, wire = frame
         self.xs.append(wire.end[0])
         self.ys.append(wire.end[1])

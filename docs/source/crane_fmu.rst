@@ -21,6 +21,8 @@ Modules
    :recursive:
 
    crane_fmu.crane
+   crane_fmu.crane_fmu
    crane_fmu.boom
+   crane_fmu.boom_fmu
    crane_fmu.enum
    crane_fmu.animation
