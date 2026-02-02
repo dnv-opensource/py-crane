@@ -1,31 +1,31 @@
 title: py-crane
-version: 0.2.0
+version: 0.3.0
 abstract: >-
-    Basic crane simulation model including publication as FMU, for usage in the SEACo project.
+  Basic crane simulation model including publication as FMU, for usage in the SEACo project.
 type: software
 authors:
-    - name: DNV AS
-      address: 'Veritasveien 1'
-      post-code: '1363'
-      city: Høvik
-      country: NO
-      website: 'https://www.dnv.com/'
-    - given-names: Author
-      family-names: One
-      affiliation: DNV
-      email: siegfried.eisinger@dnv.com
-      website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
-    - given-names: Author
-      family-names: Two
-      affiliation: DNV
-      email: jorge.luis.mendez@dnv.com
-      website: 'https://www.linkedin.com/in/jorgelmh'
+  - name: DNV AS
+    address: 'Veritasveien 1'
+    post-code: '1363'
+    city: Høvik
+    country: NO
+    website: 'https://www.dnv.com/'
+  - given-names: Author
+    family-names: One
+    affiliation: DNV
+    email: siegfried.eisinger@dnv.com
+    website: 'https://www.linkedin.com/in/siegfried-eisinger-a337638b'
+  - given-names: Author
+    family-names: Two
+    affiliation: DNV
+    email: jorge.luis.mendez@dnv.com
+    website: 'https://www.linkedin.com/in/jorgelmh'
 keywords:
-    - simulation
-    - model
-    - FMI
-    - crane
-    - tight coupling
+  - simulation
+  - model
+  - FMI
+  - crane
+  - tight coupling
 license: MIT
 license-url: 'https://dnv-opensource.github.io/py-crane/LICENSE.html'
 url: 'https://dnv-opensource.github.io/py-crane/README.html'
