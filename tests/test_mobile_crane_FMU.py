@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Sequence
 
 import numpy as np
-import pytest
+import pytest  # noqa: F401
 from component_model.utils.xml import read_xml
 from component_model.variable import Variable
 from fmpy import dump, plot_result, simulate_fmu
@@ -238,11 +238,11 @@ def test_run_mobilecrane_move(mobile_crane_fmu: Path, show: bool = False):
 
 
 if __name__ == "__main__":
-    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     crane = _mobile_crane_fmu()
     # test_fmu()
     # test_mass_center()
     # test_mobilecrane_fmu( crane, show=True)
     # test_run_mobilecrane_static( crane, show=True)
-    test_run_mobilecrane_move( crane, show=True)
+    test_run_mobilecrane_move(crane, show=True)
