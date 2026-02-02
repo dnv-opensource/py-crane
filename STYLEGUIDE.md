@@ -372,9 +372,9 @@ If you are interested in the long story including the why‘s, read these discus
     import pandas as pd
     import numpy as np
 
-    import crane_fmu
-    import crane_fmu.my_module
-    from crane_fmu.my_module import my_function, MyClass
+    import py_crane
+    import py_crane.my_module
+    from py_crane.my_module import my_function, MyClass
 ```
 
 * Even if a Python file is intended to be used as executable / script file only, it shall still be importable as a module, and its import should not have any side effects. Its main functionality shall hence be in a `main()` function, so that the code can be imported as a module for testing or being reused in the future:

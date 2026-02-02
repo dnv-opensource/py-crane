@@ -1,10 +1,10 @@
 [paths]
 source =
-    src/crane_fmu
-    */site-packages/crane_fmu
+    src/py_crane
+    */site-packages/py_crane
 
 [run]
-source = crane_fmu
+source = py_crane
 branch = True
 
 [report]

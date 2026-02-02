@@ -1,4 +1,4 @@
-from crane_fmu.enum import Change
+from py_crane.enum import Change
 
 
 def test_types():

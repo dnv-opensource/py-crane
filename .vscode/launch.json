@@ -46,11 +46,11 @@
             "justMyCode": true,
         },
         {
-            "name": "crane_fmu test_cli",
+            "name": "py_crane test_cli",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}\\tests",
-            "program": "${workspaceFolder}\\src\\crane_fmu\\cli\\crane_fmu.py",
+            "program": "${workspaceFolder}\\src\\py_crane\\cli\\__main__.py",
             "args": [
                 "test_config_file",
                 "--run",

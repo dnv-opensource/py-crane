@@ -1,5 +1,5 @@
 Variable,Value
-PackageNameDashed,crane-fmu
+PackageNameDashed,py-crane
 PackageNameCapitalized,CraneFmu
 GitHubOrganisation,dnv-opensource
 SubPackage1Name,

@@ -23,7 +23,7 @@ Installation
 
 .. code:: sh
 
-   pip install crane-fmu
+   pip install py-crane
 
 
 Usage Example
@@ -36,7 +36,7 @@ This is a simple mobile crane, like they are used on e.g. building sites with
 
 .. code-block:: Python
 
-    from crane_fmu.crane import Crane
+    from py_crane.crane import Crane
 
     class MobileCrane(Crane):
         """Simple mobile crane for FMU testing purposes.
@@ -164,17 +164,17 @@ or you can download and install Python from the `python.org <https://www.python.
 
 3. Clone the repository
 ^^^^^^^^^^^^^^^^^^^^^^^
-Clone the crane-fmu repository into your local development directory:
+Clone the py-crane repository into your local development directory:
 
 .. code:: sh
 
-   git clone https://github.com/dnv-opensource/crane-fmu path/to/your/dev/crane-fmu
+   git clone https://github.com/dnv-opensource/py-crane path/to/your/dev/py-crane
 
 Change into the project directory after cloning:
 
 .. code:: sh
 
-   cd crane-fmu
+   cd py-crane
 
 4. Install dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -278,7 +278,7 @@ Jorge Luis Mendez - `@LinkedIn <https://www.linkedin.com/in/jorgelmh>`__
 
 Distributed under the MIT license. See `LICENSE <LICENSE.md/>`_ for more information.
 
-`https://github.com/dnv-opensource/crane-fmu <https://github.com/dnv-opensource/crane-fmu/>`_
+`https://github.com/dnv-opensource/py-crane <https://github.com/dnv-opensource/py-crane/>`_
 
 Contributing
 ------------
@@ -287,7 +287,7 @@ and especially including other features from model assurance and from SEACo issu
 
 To contribute, follow these steps:
 
-1. Fork it `<https://github.com/dnv-opensource/crane-fmu/fork/>`_
+1. Fork it `<https://github.com/dnv-opensource/py-crane/fork/>`_
 2. Create an issue in your GitHub repo
 3. Create your branch based on the issue number and type (``git checkout -b issue-name``)
 4. Evaluate and stage the changes you want to commit (``git add -i``)
@@ -297,12 +297,12 @@ To contribute, follow these steps:
 
 For your contribution, please make sure you follow the `STYLEGUIDE <STYLEGUIDE.md/>`_ before creating the Pull Request.
 
-.. |pypi| image:: https://img.shields.io/pypi/v/crane-fmu.svg?color=blue
-   :target: https://pypi.python.org/pypi/crane-fmu
-.. |versions| image:: https://img.shields.io/pypi/pyversions/crane-fmu.svg?color=blue
-   :target: https://pypi.python.org/pypi/crane-fmu
-.. |license| image:: https://img.shields.io/pypi/l/crane-fmu.svg
-   :target: https://github.com/dnv-opensource/crane-fmu/blob/main/LICENSE
-.. |ci| image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/crane-fmu/.github%2Fworkflows%2Fnightly_build.yml?label=ci
-.. |docs| image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/crane-fmu/.github%2Fworkflows%2Fpush_to_release.yml?label=docs
-   :target: https://dnv-opensource.github.io/crane-fmu/README.html
+.. |pypi| image:: https://img.shields.io/pypi/v/py-crane.svg?color=blue
+   :target: https://pypi.python.org/pypi/py-crane
+.. |versions| image:: https://img.shields.io/pypi/pyversions/py-crane.svg?color=blue
+   :target: https://pypi.python.org/pypi/py-crane
+.. |license| image:: https://img.shields.io/pypi/l/py-crane.svg
+   :target: https://github.com/dnv-opensource/py-crane/blob/main/LICENSE
+.. |ci| image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/py-crane/.github%2Fworkflows%2Fnightly_build.yml?label=ci
+.. |docs| image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/py-crane/.github%2Fworkflows%2Fpush_to_release.yml?label=docs
+   :target: https://dnv-opensource.github.io/py-crane/README.html
