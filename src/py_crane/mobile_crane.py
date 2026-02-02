@@ -1,6 +1,6 @@
 from typing import Any
 
-from py_crane import CraneFMU
+from py_crane.crane_fmu import CraneFMU
 
 
 class MobileCrane(CraneFMU):
