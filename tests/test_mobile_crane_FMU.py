@@ -12,6 +12,8 @@ from fmpy import dump, plot_result, simulate_fmu
 from fmpy.validation import validate_fmu
 from pythonfmu.enums import Fmi2Causality
 
+import crane_fmu  # noqa: F401  # Ensure import machinery of the `crane_fmu` package has run before `Model.build` reaches out directly into modules inside the package.
+
 np.set_printoptions(formatter={"float_kind": "{:.4f}".format})
 
 logger = logging.getLogger(__name__)
