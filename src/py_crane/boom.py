@@ -38,7 +38,7 @@ class Boom(object):
     .. limitation:: The degrees of freedom for the boom (possible ranges in which changes of parameters are allowed)
       cannot be directly defined within the basic Boom object.
       These can be defined as part of the `Variable` definitions when packaging a crane as FMU,
-      see :doc:`py_crane.py_crane` and :doc:`py_crane.boom_fmu`.
+      see :doc:`py_crane.crane_fmu` and :doc:`py_crane.boom_fmu`.
       Alternatively the control module from the package ``component-model`` can be used to define control goals,
       which also includes limits on value, change of value and acceleration of value.
 
