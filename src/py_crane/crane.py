@@ -7,8 +7,8 @@ import numpy as np
 from component_model.utils.transform import cartesian_to_spherical
 from scipy.spatial.transform import Rotation as Rot
 
-from crane_fmu.boom import Boom
-from crane_fmu.enum import Change
+from py_crane.boom import Boom
+from py_crane.enum import Change
 
 logger = logging.getLogger(__name__)
 

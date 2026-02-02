@@ -1,6 +1,6 @@
-.. crane-fmu documentation master file
+.. py-crane documentation master file
 
-crane-fmu Documentation
+py-crane Documentation
 =======================
 
 .. toctree::

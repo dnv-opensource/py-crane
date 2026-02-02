@@ -1,4 +1,4 @@
-crane-fmu package
+py-crane package
 ==================
 
 .. Subpackages
@@ -9,7 +9,7 @@ crane-fmu package
 ..    :template: custom-module.rst
 ..    :recursive:
 
-..    crane_fmu.utils
+..    py_crane.utils
 
 
 Modules
@@ -20,9 +20,9 @@ Modules
    :template: custom-module.rst
    :recursive:
 
-   crane_fmu.crane
-   crane_fmu.crane_fmu
-   crane_fmu.boom
-   crane_fmu.boom_fmu
-   crane_fmu.enum
-   crane_fmu.animation
+   py_crane.crane
+   py_crane.crane_fmu
+   py_crane.boom
+   py_crane.boom_fmu
+   py_crane.enum
+   py_crane.animation

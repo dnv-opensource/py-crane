@@ -7,10 +7,10 @@ from typing import Any, Never, Sequence, cast
 import numpy as np
 from component_model.model import Model
 
-from crane_fmu.boom import Boom
-from crane_fmu.enum import Change
+from py_crane.boom import Boom
+from py_crane.enum import Change
 
-# from crane_fmu.crane import Crane
+# from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class BoomFMU(Boom):
         animationLW: int = 5,
         **kwargs: Any,
     ):
-        from crane_fmu import CraneFMU
+        from py_crane import CraneFMU
 
         model: Model | None = kwargs.get("model", None)
         assert model is not None, "The 'model' argument is needed when instantiating a Boom"
