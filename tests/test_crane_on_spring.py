@@ -140,12 +140,16 @@ def ensure_subpath(pkg: str, folder: str) -> bool:
         elif p.endswith(pkg):
             pkg_path = p
     if pkg_path == "":
-        raise ValueError(f"Package {pkg} is not loaded and we cannot include a sub-folder in sys.path") from None
+        # raise ValueError(f"Package {pkg} is not loaded and we cannot include a sub-folder in sys.path") from None
         return False
     sys.path.insert(0, os.path.join(pkg_path, folder))
     return True
 
 
+component_model_examples_loaded: bool = ensure_subpath("component_model", "examples")
+
+
+@pytest.mark.skipif(not component_model_examples_loaded, reason="component_model examples not loaded")
 def make_crane_on_spring(
     pM: float = 10000.0,  # in kg
     pCoM: tuple[float, ...] = (0.5, -1.0, 0.8),  # in m
@@ -213,6 +217,7 @@ def make_crane_on_spring(
     return (crane, force, osc)
 
 
+@pytest.mark.skipif(not component_model_examples_loaded, reason="component_model examples not loaded")
 def test_crane_on_spring(show: bool = False):
     """Test the crane object as force on a 6D oscillator. No FMUs involved."""
 
@@ -265,6 +270,7 @@ def test_crane_on_spring(show: bool = False):
     # do_experiment(m=1e4, c=(0.5,) * 6, pCoM=(0.5, 0, 0), bA=np.radians(90), title="90deg boom crane", show=show)
 
 
+@pytest.mark.skipif(not component_model_examples_loaded, reason="component_model examples not loaded")
 def test_controlled_crane_on_spring(show: bool = False):
     """Move the crane-on-spring, which should lead to wobling."""
 
