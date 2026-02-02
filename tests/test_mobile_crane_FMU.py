@@ -12,8 +12,6 @@ from fmpy import dump, plot_result, simulate_fmu
 from fmpy.validation import validate_fmu
 from pythonfmu.enums import Fmi2Causality
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
-
 np.set_printoptions(formatter={"float_kind": "{:.4f}".format})
 
 logger = logging.getLogger(__name__)
@@ -59,7 +57,7 @@ def _mobile_crane_fmu() -> Path:
     build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(  # MobileCrane.build(
-        str(Path(__file__).parent.parent / "examples" / "mobile_crane.py"),
+        str(Path(__file__).parent.parent / "src" / "crane_fmu" / "mobile_crane.py"),
         project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
         dest=build_path,
     )
@@ -81,7 +79,7 @@ def test_mobilecrane_fmu(mobile_crane_fmu: Path, show: bool = False):
 def test_fmu():
     """Test the FMU object itself."""
     sys.path.insert(0, str((Path(__file__).parent.parent).absolute()))
-    from examples.mobile_crane import MobileCrane
+    from crane_fmu.mobile_crane import MobileCrane
 
     def test_vals(v: Variable, k: int, val: float, rng: tuple[float, float], typ: type) -> tuple[float, ...]:
         """Identify test values with respect to the value and range."""
@@ -234,17 +232,17 @@ def test_run_mobilecrane_move(mobile_crane_fmu: Path, show: bool = False):
     logger.info("fmpy. simulate crane without movement.")
     run_simulation()
     logger.info("fmpy. simulate crane moving pedestal with constant speed 1.0 deg/s")
-    run_simulation(p_speed=1.0, show=False)
+    run_simulation(p_speed=1.0, show=show)
     logger.info("fmpy. simulate crane moving pedestal with constant acceleration 0.1 deg/s^2")
-    run_simulation(p_acc=0.1, show=True)
+    run_simulation(p_acc=0.1, show=show)
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = 0#pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     crane = _mobile_crane_fmu()
     # test_fmu()
     # test_mass_center()
     # test_mobilecrane_fmu( crane, show=True)
     # test_run_mobilecrane_static( crane, show=True)
-    # test_run_mobilecrane_move( crane, show=True)
+    test_run_mobilecrane_move( crane, show=True)
