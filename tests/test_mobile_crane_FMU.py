@@ -12,7 +12,7 @@ from fmpy import dump, plot_result, simulate_fmu
 from fmpy.validation import validate_fmu
 from pythonfmu.enums import Fmi2Causality
 
-import crane_fmu  # noqa: F401  # Ensure import machinery of the `crane_fmu` package has run before `Model.build` reaches out directly into modules inside the package.
+import py_crane  # noqa: F401  # Ensure import machinery of the `py_crane` package has run before `Model.build` reaches out directly into modules inside the package.
 
 np.set_printoptions(formatter={"float_kind": "{:.4f}".format})
 
@@ -59,8 +59,8 @@ def _mobile_crane_fmu() -> Path:
     build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(  # MobileCrane.build(
-        str(Path(__file__).parent.parent / "src" / "crane_fmu" / "mobile_crane.py"),
-        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
+        str(Path(__file__).parent.parent / "src" / "py_crane" / "mobile_crane.py"),
+        project_files=[Path(__file__).parent.parent / "src" / "py_crane"],
         dest=build_path,
     )
     return fmu_path
@@ -81,7 +81,7 @@ def test_mobilecrane_fmu(mobile_crane_fmu: Path, show: bool = False):
 def test_fmu():
     """Test the FMU object itself."""
     sys.path.insert(0, str((Path(__file__).parent.parent).absolute()))
-    from crane_fmu.mobile_crane import MobileCrane
+    from py_crane.mobile_crane import MobileCrane
 
     def test_vals(v: Variable, k: int, val: float, rng: tuple[float, float], typ: type) -> tuple[float, ...]:
         """Identify test values with respect to the value and range."""

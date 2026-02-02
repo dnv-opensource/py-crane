@@ -12,8 +12,8 @@ import pytest
 from component_model.model import Model
 from component_model.utils.controls import Controls
 
-from crane_fmu.animation import AnimateCrane
-from crane_fmu.crane import Crane
+from py_crane.animation import AnimateCrane
+from py_crane.crane import Crane
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
 
@@ -52,7 +52,7 @@ def make_fmu(build_path: Path, source: str, resource: Path, newargs: dict[str, A
 def make_fmus():
     """Re-make the FMUs. Only default arguments used here."""
     make_fmu(
-        Path(__file__).parent.parent / "examples", "mobile_crane.py", Path(__file__).parent.parent / "src" / "crane_fmu"
+        Path(__file__).parent.parent / "examples", "mobile_crane.py", Path(__file__).parent.parent / "src" / "py_crane"
     )
     make_fmu(
         Path(__file__).parent.parent.parent / "component-model" / "examples",
@@ -61,7 +61,7 @@ def make_fmus():
     )
     shutil.copy(
         Path(__file__).parent.parent.parent / "component-model" / "examples" / "HarmonicOscillator6D.fmu",
-        Path(__file__).parent.parent / "src" / "crane_fmu" / "examples",
+        Path(__file__).parent.parent / "src" / "py_crane" / "examples",
     )
 
 
@@ -69,7 +69,7 @@ def make_mobile_crane_straight():
     fmu = make_fmu(
         Path(__file__).parent.parent / "examples",
         "mobile_crane.py",
-        Path(__file__).parent.parent / "src" / "crane_fmu",
+        Path(__file__).parent.parent / "src" / "py_crane",
         newargs={"pedestalCoM": (0.5, 0, 0), "boomAngle": "0 deg", "wire_length": "5 m"},
     )
     shutil.copy(fmu, fmu.parent / "MobileCraneStraight.fmu")

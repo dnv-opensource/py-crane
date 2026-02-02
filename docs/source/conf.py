@@ -21,12 +21,12 @@ sys.path.insert(0, str(Path("../_ext").absolute()))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "crane-fmu"
+project = "py-crane"
 copyright = "2025, DNV AS. All rights reserved."
 author = "Siegfried Eisinger, Jorge Luis Mendez"
 
 # The full version, including alpha/beta/rc tags
-release = "0.2.0"
+release = "0.3.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -76,10 +76,10 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_title = f"crane-fmu {release}"
+html_title = f"py-crane {release}"
 html_theme = "furo"
 html_static_path = ["_static"]
-# html_logo = "_static/crane_fmu.svg"
+# html_logo = "_static/py_crane.svg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,

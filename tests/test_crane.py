@@ -12,9 +12,9 @@ from component_model.utils.transform import rot_from_spherical, rot_from_vectors
 from matplotlib.animation import FuncAnimation
 from scipy.spatial.transform import Rotation as Rot
 
-from crane_fmu.animation import AnimateCrane, AnimatePendulum
-from crane_fmu.boom import Boom
-from crane_fmu.crane import Crane
+from py_crane.animation import AnimateCrane, AnimatePendulum
+from py_crane.boom import Boom
+from py_crane.crane import Crane
 
 # from mpl_toolkits.mplot3d.art3d import Line3D
 

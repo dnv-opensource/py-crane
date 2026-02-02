@@ -9,8 +9,8 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3D
 
-from crane_fmu.boom import Boom
-from crane_fmu.crane import Crane
+from py_crane.boom import Boom
+from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

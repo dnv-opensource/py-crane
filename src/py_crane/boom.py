@@ -14,10 +14,10 @@ from component_model.utils.transform import (
 from scipy.integrate import solve_ivp
 from scipy.spatial.transform import Rotation as Rot
 
-from crane_fmu.enum import Change
+from py_crane.enum import Change
 
 if TYPE_CHECKING:
-    import crane_fmu.crane
+    import py_crane.crane
 
 # Type Alias for a 1-dim array with 3 elements. Used throughout the code to denote 3D vectors.
 TVector: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
@@ -38,7 +38,7 @@ class Boom(object):
     .. limitation:: The degrees of freedom for the boom (possible ranges in which changes of parameters are allowed)
       cannot be directly defined within the basic Boom object.
       These can be defined as part of the `Variable` definitions when packaging a crane as FMU,
-      see :doc:`crane_fmu.crane_fmu` and :doc:`crane_fmu.boom_fmu`.
+      see :doc:`py_crane.crane_fmu` and :doc:`py_crane.boom_fmu`.
       Alternatively the control module from the package ``component-model`` can be used to define control goals,
       which also includes limits on value, change of value and acceleration of value.
 
@@ -86,7 +86,7 @@ class Boom(object):
        while derived internal variables are more complex (often 3D vectors)
 
     Args:
-        model (crane_fmu.crane.Crane): The model object owning the boom
+        model (py_crane.crane.Crane): The model object owning the boom
         name (str): The short name of the boom (unique within crane)
         description (str) = '':  An optional description of the boom
         anchor0 (Boom): the boom object to which this Boom is attached.
@@ -144,7 +144,7 @@ class Boom(object):
 
     def __init__(
         self,
-        model: "crane_fmu.crane.Crane",
+        model: "py_crane.crane.Crane",
         name: str,
         description: str = "",
         anchor0: Boom | None = None,
@@ -156,7 +156,7 @@ class Boom(object):
         tolerance: float = 1e-5,
         **kwargs: Any,  # for compatibility with derived classes
     ):
-        self._model: crane_fmu.crane.Crane = model
+        self._model: py_crane.crane.Crane = model
         self.anchor0: Boom | None = anchor0
         self.anchor1: Boom | None = None  # so far. If a boom is added, this is changed
         self._name: str = name

@@ -7,8 +7,8 @@ from component_model.model import Model
 from component_model.variable import Variable
 from component_model.variable_naming import VariableNamingConvention
 
-from crane_fmu.boom_fmu import BoomFMU
-from crane_fmu.crane import Crane
+from py_crane.boom_fmu import BoomFMU
+from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
 
