@@ -65,7 +65,7 @@ class BoomFMU(Boom):
         animationLW: int = 5,
         **kwargs: Any,
     ):
-        from crane_fmu.crane_fmu import CraneFMU
+        from crane_fmu import CraneFMU
 
         model: Model | None = kwargs.get("model", None)
         assert model is not None, "The 'model' argument is needed when instantiating a Boom"
