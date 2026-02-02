@@ -13,9 +13,9 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 ### Breaking Change: New package name
 * Changed name of the repository, the package, and the associated pypi project from `crane-fmu` to `py-crane`.
 * The repository URL changed from <br>
-  https://github.com/dnv-innersource/crane-fmu <br>
+  https://github.com/dnv-opensource/crane-fmu <br>
   to <br>
-  https://github.com/dnv-innersource/py-crane
+  https://github.com/dnv-opensource/py-crane
 * The documentation URL changed from <br>
   https://dnv-opensource.github.io/crane-fmu/README.html <br>
   to <br>
@@ -150,10 +150,10 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 
 <!-- Markdown link & img dfn's -->
-[unreleased]: https://github.com/dnv-innersource/py-crane/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/dnv-innersource/py-crane/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/dnv-innersource/py-crane/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/dnv-innersource/py-crane/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/dnv-innersource/py-crane/compare/v0.0.1...v0.1.0
-[0.0.1]: https://github.com/dnv-innersource/py-crane/releases/tag/v0.0.1
-[py-crane]: https://github.com/dnv-innersource/py-crane
+[unreleased]: https://github.com/dnv-opensource/py-crane/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/dnv-opensource/py-crane/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/dnv-opensource/py-crane/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/dnv-opensource/py-crane/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/dnv-opensource/py-crane/compare/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/dnv-opensource/py-crane/releases/tag/v0.0.1
+[py-crane]: https://github.com/dnv-opensource/py-crane
