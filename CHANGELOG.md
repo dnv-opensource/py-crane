@@ -7,6 +7,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 
 * -/-
 
+
 ## [0.3.0] - 2026-02-02
 
 ### Breaking Change: New package name
@@ -24,6 +25,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
   to <br>
   https://pypi.org/project/py-crane
 * The old project on pypi 'crane-fmu' has been archived.
+
 
 ## [0.2.0] - 2026-02-02
 
