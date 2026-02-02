@@ -1,23 +1,26 @@
+# pyright: reportUnknownMemberType=false
+from typing import Generator
+
 import numpy as np
 from matplotlib import animation
 from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Line3D
 
 fig = plt.figure()
-ax: Axes3D = fig.add_subplot(projection="3d")
+ax = fig.add_subplot(projection="3d")
 
 
-def gen(n):
-    phi = 0
+def gen(n: int) -> Generator[np.ndarray[tuple[int], np.dtype[np.float64]], None, None]:
+    phi: float = 0.0
     while phi < 2 * np.pi:
-        yield np.array([np.cos(phi), np.sin(phi), phi])
+        yield np.array([np.cos(phi), np.sin(phi), phi], dtype=np.float64)
         phi += 2 * np.pi / n
 
 
-def update(num, data, line):
+def update(num: int, data: np.ndarray[tuple[int, int], np.dtype[np.float64]], line: Line3D):
     print("UPDATE", num, data[:2, :num])
     line.set_data(data[:2, :num])
-    line.set_3d_properties(data[2, :num])
+    line.set_3d_properties(data[2, :num])  # pyright: ignore[reportArgumentType]
 
 
 N = 100
@@ -25,18 +28,25 @@ data = np.array(list(gen(N))).T
 (line,) = ax.plot(data[0, 0:1], data[1, 0:1], data[2, 0:1])
 
 # Setting the axes properties
-ax.set_xlim3d([-1.0, 1.0])
-ax.set_xlabel("X")
+ax.set_xlim((-1.0, 1.0))
+_ = ax.set_xlabel("X")
 
-ax.set_ylim3d([-1.0, 1.0])
-ax.set_ylabel("Y")
+ax.set_ylim((-1.0, 1.0))
+_ = ax.set_ylabel("Y")
 
-ax.set_zlim3d([0.0, 10.0])
-ax.set_zlabel("Z")
+ax.set_zlim((0.0, 10.0))
+_ = ax.set_zlabel("Z")
 
 print("Before animation.", N, len(data))
 
-ani = animation.FuncAnimation(fig, update, frames=N, fargs=(data, line), interval=10000 / N, blit=False)
+ani = animation.FuncAnimation(
+    fig,
+    update,  # type: ignore  ## return value of update() can be omitted if blit=False!
+    frames=N,
+    fargs=(data, line),
+    interval=10000 / N,
+    blit=False,
+)
 explanation = """
 class matplotlib.animation.FuncAnimation(fig, func, frames=None, init_func=None, fargs=None, save_count=None, *, cache_frame_data=True, **kwargs)
 `FuncAnimation <https://matplotlib.org/stable/api/_as_gen/matplotlib.animation.FuncAnimation.html>`_
