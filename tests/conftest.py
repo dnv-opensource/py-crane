@@ -2,9 +2,24 @@ import logging
 import os
 from pathlib import Path
 from shutil import rmtree
+from typing import Any
 
 import pytest
-from component_model.model import Model
+
+
+@pytest.fixture(scope="session")
+def mobile_crane_fmu():
+    """Make the (updated) MobileCrane.fmu available for all tests."""
+    from component_model.model import Model
+
+    build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
+    build_path.mkdir(exist_ok=True)
+    fmu_path = Model.build(  # MobileCrane.build(
+        str(Path(__file__).parent.parent / "src" / "crane_fmu" / "mobile_crane.py"),
+        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
+        dest=build_path,
+    )
+    return fmu_path
 
 
 @pytest.fixture(scope="package", autouse=True)
@@ -27,6 +42,7 @@ def test_dir() -> Path:
 
 output_dirs = [
     "results",
+    "data",
 ]
 output_files = [
     "*test*.pdf",
@@ -42,19 +58,6 @@ def default_setup_and_teardown():
     _remove_output_dirs_and_files()
     yield
     _remove_output_dirs_and_files()
-
-
-@pytest.fixture(scope="session")
-def mobile_crane_fmu():
-    build_path = Path(__file__).parent / "resources"  # together with other crane files
-    build_path.mkdir(exist_ok=True)
-    fmu_path = Model.build(
-        str(Path(__file__).parent / "resources" / "mobile_crane.py"),
-        project_files=[Path(__file__).parent.parent / "src" / "crane_fmu"],
-        dest=build_path,
-    )
-
-    return fmu_path
 
 
 def _remove_output_dirs_and_files() -> None:
@@ -85,10 +88,10 @@ def logger() -> logging.Logger:
     return logging.getLogger()
 
 
-def pytest_addoption(parser):
+def pytest_addoption(parser: Any):
     parser.addoption("--show", action="store", default=False)
 
 
 @pytest.fixture(scope="session")
-def show(request):
-    return request.config.getoption("--show") == "True"
+def show(request: Any):
+    return request.config.getoption("--show") == "False"

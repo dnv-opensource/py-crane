@@ -1,13 +1,15 @@
 crane-fmu package
 ==================
 
-Subpackages
------------
+.. Subpackages
+.. -----------
 
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module.rst
-   :recursive:
+.. .. autosummary::
+..    :toctree: _autosummary
+..    :template: custom-module.rst
+..    :recursive:
+
+..    crane_fmu.utils
 
 
 Modules
@@ -19,4 +21,8 @@ Modules
    :recursive:
 
    crane_fmu.crane
+   crane_fmu.crane_fmu
    crane_fmu.boom
+   crane_fmu.boom_fmu
+   crane_fmu.enum
+   crane_fmu.animation

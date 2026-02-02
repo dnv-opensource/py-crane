@@ -1,0 +1,34 @@
+<OspSystemStructure xmlns="http://opensimulationplatform.com/MSMI/OSPSystemStructure" version="0.1">
+   <StartTime>0.0</StartTime>
+   <BaseStepSize>0.01</BaseStepSize>
+   <Algorithm>ecco</Algorithm>
+   <Simulators>
+      <Simulator name="crane" source="MobileCraneStraight.fmu" stepSize="0.01"/>
+      <Simulator name="osc" source="HarmonicOscillator6D.fmu" stepSize="0.01" />
+   </Simulators>
+
+    <Connections>
+      <VariableConnection powerBond="forceX-velocityX">
+         <Variable simulator="crane" name="torque[0]" causality="output"/>
+         <Variable simulator="osc" name="f[3]" causality="input"/>
+      </VariableConnection>
+      <VariableConnection powerBond="forceX-velocityX">
+         <Variable simulator="osc" name="v[3]" causality="output"/>
+         <Variable simulator="crane" name="d_angular[0]" causality="input"/>
+      </VariableConnection>
+   </Connections>
+
+   <EccoConfiguration>
+      <SafetyFactor>0.99</SafetyFactor>
+      <StepSize>0.0001</StepSize>
+      <MinimumStepSize>0.00001</MinimumStepSize>
+      <MaximumStepSize>0.01</MaximumStepSize>
+      <MinimumChangeRate>0.2</MinimumChangeRate>
+      <MaximumChangeRate>1.5</MaximumChangeRate>
+      <ProportionalGain>0.2</ProportionalGain>
+      <IntegralGain>0.15</IntegralGain>
+      <RelativeTolerance>1e-6</RelativeTolerance>
+      <AbsoluteTolerance>1e-6</AbsoluteTolerance>
+   </EccoConfiguration>
+
+</OspSystemStructure>

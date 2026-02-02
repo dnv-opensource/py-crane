@@ -1,4 +1,3 @@
-# ruff: noqa
 # mypy: ignore-errors
 
 # Configuration file for the Sphinx documentation builder.
@@ -15,19 +14,19 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path("../_ext").absolute()))
 sys.path.insert(0, str(Path("../../src").absolute()))
+sys.path.insert(0, str(Path("../_ext").absolute()))
 
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Crane-FMU"
-copyright = "2024, DNV AS. All rights reserved."
-author = "Siegfried Eisinger, Jorge Mendez, SEACo project team"
+project = "crane-fmu"
+copyright = "2025, DNV AS. All rights reserved."
+author = "Siegfried Eisinger, Jorge Luis Mendez"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.1"
+release = "0.2.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -43,12 +42,15 @@ extensions = [
     "sphinxcontrib.mermaid",
     "get_from_code",
     "spec",
-    "sphinx.ext.napoleon",  # to read nupy docstrings
-    "sphinx.ext.autodoc",
     "sphinx.ext.graphviz",
     "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.intersphinx",
     # "sphinx.ext.autosectionlabel",
 ]
+
+intersphinx_mapping = {
+    #    "component-model": ("https://github.com/dnv-opensource/component-model/", None),
+}
 
 # Extenstion for myst_parser
 myst_enable_extensions = [
@@ -77,14 +79,13 @@ exclude_patterns = []
 html_title = f"crane-fmu {release}"
 html_theme = "furo"
 html_static_path = ["_static"]
-# html_logo = "_static/crane-fmu.svg"
+# html_logo = "_static/crane_fmu.svg"
 autodoc_default_options = {
     "member-order": "groupwise",
     "undoc-members": True,
     "exclude-members": "__weakref__",
 }
 autodoc_preserve_defaults = True
-# autoclass_content = "both"  # both __init__ and class docstring
 
 myst_heading_anchors = 3
 

@@ -1,3 +1,5 @@
+|pypi| |versions| |license| |ci| |docs|
+
 Introduction
 ============
 The package extends the `component_model` package to provide the means to construct cranes.
@@ -19,10 +21,12 @@ as an example on how a concrete crane can be defined and used.
 Installation
 ------------
 
-``pip install crane-fmu``
+.. code:: sh
+
+   pip install crane-fmu
 
 
-Usage example
+Usage Example
 -------------
 This is a simple mobile crane, like they are used on e.g. building sites with
 
@@ -122,11 +126,15 @@ If you haven't already, install `uv <https://docs.astral.sh/uv/>`_, preferably u
 
 ..on Windows:
 
-``powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"``
+.. code:: sh
+
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 ..on MacOS and Linux:
 
-``curl -LsSf https://astral.sh/uv/install.sh | sh``
+.. code:: sh
+
+   curl -LsSf https://astral.sh/uv/install.sh | sh
 
 (see `docs.astral.sh/uv <https://docs.astral.sh/uv/getting-started/installation//>`_ for all / alternative installation methods.)
 
@@ -136,17 +144,21 @@ Once installed, you can update `uv` to its latest version, anytime, by running:
 
 2. Install Python
 ^^^^^^^^^^^^^^^^^
-This project requires Python 3.10 or later.
+This project requires Python 3.11 or later.
 
 If you don't already have a compatible version installed on your machine, the probably most comfortable way to install Python is through ``uv``:
 
-``uv python install``
+.. code:: sh
+
+   uv python install
 
 This will install the latest stable version of Python into the uv Python directory, i.e. as a uv-managed version of Python.
 
 Alternatively, and if you want a standalone version of Python on your machine, you can install Python either via ``winget``:
 
-``winget install --id Python.Python``
+.. code:: sh
+
+   winget install --id Python.Python
 
 or you can download and install Python from the `python.org <https://www.python.org/downloads//>`_ website.
 
@@ -154,13 +166,39 @@ or you can download and install Python from the `python.org <https://www.python.
 ^^^^^^^^^^^^^^^^^^^^^^^
 Clone the crane-fmu repository into your local development directory:
 
-``git clone https://github.com/dnv-opensource/crane-fmu path/to/your/dev/crane-fmu``
+.. code:: sh
+
+   git clone https://github.com/dnv-opensource/crane-fmu path/to/your/dev/crane-fmu
+
+Change into the project directory after cloning:
+
+.. code:: sh
+
+   cd crane-fmu
 
 4. Install dependencies
 ^^^^^^^^^^^^^^^^^^^^^^^
-Run ``uv sync`` to create a virtual environment and install all project dependencies into it:
+Run ``uv sync -U`` to create a virtual environment and install all project dependencies into it:
 
-``uv sync``
+.. code:: sh
+
+   uv sync -U
+
+..
+
+   **Note**: Using ``--no-dev`` will omit installing development
+   dependencies.
+
+   **Explanation**: The ``-U`` option stands for ``--update``. It forces
+   ``uv`` to fetch and install the latest versions of all dependencies,
+   ensuring that your environment is up-to-date.
+
+..
+
+   **Note**: ``uv`` will create a new virtual environment called
+   ``.venv`` in the project root directory when running ``uv sync -U``
+   the first time. Optionally, you can create your own virtual
+   environment using e.g. ``uv venv``, before running ``uv sync -U``.
 
 5. (Optional) Activate the virtual environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -168,7 +206,9 @@ When using ``uv``, there is in almost all cases no longer a need to manually act
 
 ``uv`` will find the ``.venv`` virtual environment in the working directory or any parent directory, and activate it on the fly whenever you run a command via `uv` inside your project folder structure:
 
-``uv run <command>``
+.. code:: sh
+
+   uv run <command>
 
 However, you still *can* manually activate the virtual environment if needed.
 When developing in an IDE, for instance, this can in some cases be necessary depending on your IDE settings.
@@ -176,40 +216,72 @@ To manually activate the virtual environment, run one of the "known" legacy comm
 
 ..on Windows:
 
-``.venv\Scripts\activate.bat``
+.. code:: sh
+
+   .venv\Scripts\activate.bat
 
 ..on Linux:
 
-``source .venv/bin/activate``
+.. code:: sh
+
+   source .venv/bin/activate
 
 6. Install pre-commit hooks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The ``.pre-commit-config.yaml`` file in the project root directory contains a configuration for pre-commit hooks.
 To install the pre-commit hooks defined therein in your local git repository, run:
 
-``uv run pre-commit install``
+.. code:: sh
+
+   uv run pre-commit install
 
 All pre-commit hooks configured in ``.pre-commit-config.yam`` will now run each time you commit changes.
+
+pre-commit can also manually be invoked, at anytime, using:
+
+.. code:: sh
+
+   uv run pre-commit run --all-files
+
+To skip the pre-commit validation on commits (e.g. when intentionally
+committing broken code), run:
+
+.. code:: sh
+
+   uv run git commit -m <MSG> --no-verify
+
+To update the hooks configured in ``.pre-commit-config.yaml`` to their
+newest versions, run:
+
+.. code:: sh
+
+   uv run pre-commit autoupdate
 
 7. Test that the installation works
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To test that the installation works, run pytest in the project root folder:
 
-``uv run pytest``
+.. code:: sh
 
+   uv run pytest
 
 Meta
 ----
-Copyright (c) 2024 `DNV <https://www.dnv.com/>`_ AS. All rights reserved.
+Copyright (c) 2025 `DNV <https://www.dnv.com/>`_ AS. All rights reserved.
 
-Siegfried Eisinger - siegfried.eisinger@dnv.com
+Siegfried Eisinger -
+`@LinkedIn <https://www.linkedin.com/in/siegfried-eisinger-a337638b>`__
+- siegfried.eisinger@dnv.com
+
+Jorge Luis Mendez - `@LinkedIn <https://www.linkedin.com/in/jorgelmh>`__
+- jorge.luis.mendez@dnv.com
 
 Distributed under the MIT license. See `LICENSE <LICENSE.md/>`_ for more information.
 
 `https://github.com/dnv-opensource/crane-fmu <https://github.com/dnv-opensource/crane-fmu/>`_
 
-Contribute
-----------
+Contributing
+------------
 Anybody in the FMU, OSPand SEACo community is especially welcome to contribute to this code, to make it better,
 and especially including other features from model assurance and from SEACo issues.
 
@@ -225,4 +297,12 @@ To contribute, follow these steps:
 
 For your contribution, please make sure you follow the `STYLEGUIDE <STYLEGUIDE.md/>`_ before creating the Pull Request.
 
-
+.. |pypi| image:: https://img.shields.io/pypi/v/crane-fmu.svg?color=blue
+   :target: https://pypi.python.org/pypi/crane-fmu
+.. |versions| image:: https://img.shields.io/pypi/pyversions/crane-fmu.svg?color=blue
+   :target: https://pypi.python.org/pypi/crane-fmu
+.. |license| image:: https://img.shields.io/pypi/l/crane-fmu.svg
+   :target: https://github.com/dnv-opensource/crane-fmu/blob/main/LICENSE
+.. |ci| image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/crane-fmu/.github%2Fworkflows%2Fnightly_build.yml?label=ci
+.. |docs| image:: https://img.shields.io/github/actions/workflow/status/dnv-opensource/crane-fmu/.github%2Fworkflows%2Fpush_to_release.yml?label=docs
+   :target: https://dnv-opensource.github.io/crane-fmu/README.html
