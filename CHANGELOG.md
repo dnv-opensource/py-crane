@@ -8,7 +8,7 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
-## [0.2.0] - 2026-01-16
+## [0.2.0] - 2026-02-02
 
 ### Added
 * Sphinx documentation:
