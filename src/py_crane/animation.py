@@ -1,6 +1,6 @@
 # pyright: reportUnknownMemberType=false
 import logging
-from typing import Any, Generator, Protocol, TypeAlias, cast
+from typing import Any, Generator, Protocol, Sequence, TypeAlias, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -275,8 +275,8 @@ class AnimatePlayBackLines(object):
 
     def __init__(
         self,
-        data: tuple[np.ndarray,...],
-        lw: tuple[int, ...] | None = None,
+        data: Sequence[np.ndarray],
+        lw: Sequence[int] | None = None,
         figsize: tuple[int, int] = (8, 8),
         interval: int = 200,
         title: str = "Crane animation",
@@ -291,14 +291,13 @@ class AnimatePlayBackLines(object):
         self.lines: list[list[Line3D]] = []
         self.fig: Figure = plt.figure(figsize=self.figsize, layout=None)  # "constrained")
 
-    def _get_axes_lim(self, data: tuple[np.ndarray,...]) -> list[list[int]]:
+    def _get_axes_lim(self, data: Sequence[np.ndarray]) -> list[list[int]]:
         """Get the limits of time (data[0]) and all points. Time shall be sorted in ascening order."""
         length = len(data[0])
         assert all(len(data[i + 1]) == length for i in range(len(data) - 1)), (
             f"Columns of 'data' not equal length {length}"
         )
         assert all(data[i + 1].shape == (length, 3) for i in range(len(data) - 1)), "Data points shall be 3D"
-        t_minmax = (np.min(data[0]), np.max(data[0]))
         assert all(data[0][i] < data[0][i + 1] for i in range(length - 1)), "Column 0 (time) is unsorted"
         axes_lim = [[int(np.min(data[1][k])) - 1, int(np.max(data[1][k])) + 1] for k in range(3)]
         for i in range(len(data) - 2):
