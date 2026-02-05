@@ -258,3 +258,92 @@ class AnimatePendulum(object):
             cache_frame_data=False,
         )
         plt.show()
+
+
+class AnimatePlayBackLines(object):
+    """Uses the matplotlib FuncAnimation for re-playing lines recorded beforehand.
+
+    Args:
+        data (tuple[np.ndarray]): the input data. time is expected as the first array,
+           then the base point and then any number of end-points (connected lines)
+        lw (tuple[int,...]): Optional specification of the line width of the drawn lines. Default: 1 for all
+        figsize (tuple) = (8,8): figure size in inches
+        interval (int) = 200: Time in milliseconds between animation frames
+        title (str) = "Lines re-player": Figure title
+        **kwargs: optional additional keyword arguments to generator function
+    """
+
+    def __init__(
+        self,
+        data: tuple[np.ndarray,...],
+        lw: tuple[int, ...] | None = None,
+        figsize: tuple[int, int] = (8, 8),
+        interval: int = 200,
+        title: str = "Crane animation",
+    ):
+        self.data = data
+        self.lw = (1,) * (len(data) - 1) if lw is None else lw
+        self.times = data[0]
+        self.figsize = figsize
+        self.axes_lim = self._get_axes_lim(data)
+        self.interval = interval
+        self.title = title
+        self.lines: list[list[Line3D]] = []
+        self.fig: Figure = plt.figure(figsize=self.figsize, layout=None)  # "constrained")
+
+    def _get_axes_lim(self, data: tuple[np.ndarray,...]) -> list[list[int]]:
+        """Get the limits of time (data[0]) and all points. Time shall be sorted in ascening order."""
+        length = len(data[0])
+        assert all(len(data[i + 1]) == length for i in range(len(data) - 1)), (
+            f"Columns of 'data' not equal length {length}"
+        )
+        assert all(data[i + 1].shape == (length, 3) for i in range(len(data) - 1)), "Data points shall be 3D"
+        t_minmax = (np.min(data[0]), np.max(data[0]))
+        assert all(data[0][i] < data[0][i + 1] for i in range(length - 1)), "Column 0 (time) is unsorted"
+        axes_lim = [[int(np.min(data[1][k])) - 1, int(np.max(data[1][k])) + 1] for k in range(3)]
+        for i in range(len(data) - 2):
+            for k in range(3):
+                axes_lim[k][0] = min(axes_lim[k][0], int(np.min(data[i + 2]) - 1))
+                axes_lim[k][1] = max(axes_lim[k][1], int(np.max(data[i + 2]) + 1))
+        return axes_lim
+
+    def init_fig(self) -> None:
+        """Perform the needed initializations."""
+        ax: Axes3D = plt.axes(projection="3d")  # , data=line)  # pyright: ignore[reportAssignmentType]
+        ax.set_xlim(self.axes_lim[0])
+        ax.set_ylim(self.axes_lim[1])
+        ax.set_zlim(self.axes_lim[2])
+        start: np.ndarray
+        end: np.ndarray
+        for start, end, lw in zip(self.data[1:-1], self.data[2:], self.lw, strict=True):
+            self.lines.append(
+                cast(
+                    list[Line3D],
+                    ax.plot([start[0], end[0]], [start[1], end[1]], [start[2], end[2]], linewidth=lw),
+                )
+            )
+
+    def update(self, row: int):
+        """Receives the frames from FuncAnimation with updated line data. Draw the booms as lines by data rows."""
+        time = self.data[0][row]
+        for i in range(len(self.data) - 2):  # all lines
+            self.lines[i][0].set_data_3d(
+                [self.data[i + 1][row][0], self.data[i + 2][row][0]],
+                [self.data[i + 1][row][1], self.data[i + 2][row][1]],
+                [self.data[i + 1][row][2], self.data[i + 2][row][2]],
+            )
+        _ = plt.title(f"{self.title} ({time:.1f})", loc="left")
+
+    def do_animation(self):
+        """Do the animation. It generates frames and updates the animation plot."""
+        _ = FuncAnimation(
+            self.fig,
+            self.update,  # type: ignore[reportArgumentType, arg-type]  # ok as long as `blit=False`
+            frames=range(len(self.data[0])),
+            init_func=self.init_fig,  # type: ignore[reportArgumentType, arg-type]  # ok as long as `blit=False`
+            interval=self.interval,
+            repeat=False,
+            blit=False,
+            cache_frame_data=False,
+        )
+        plt.show()
