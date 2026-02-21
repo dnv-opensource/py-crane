@@ -14,7 +14,7 @@ from component_model.utils.transform import (
 from scipy.integrate import solve_ivp
 from scipy.spatial.transform import Rotation as Rot
 
-from py_crane.enum import Change
+from py_crane.enums import Change
 
 if TYPE_CHECKING:
     import py_crane.crane
@@ -30,7 +30,8 @@ class Boom(object):
     modelled as stiff rod with length, mass and mass-center.
 
     .. assumption:: All booms of the crane are completely stiff, excluding bending, stretching and vibration
-      modes of motion. This includes also loose conncetions, i.e. the wire is assumed straight and without stretch.
+      modes of motion. This includes also loose connections,
+      i.e. the wire is assumed straight and without stretch and torsion.
 
     .. assumption:: Per default, the mass center of a boom is located at the geometric center of the boom.
       This can be changed using the tuple form of the :py:attr:`mass_center` parameter.
@@ -55,8 +56,11 @@ class Boom(object):
         The spherical angles with respect to the previous boom can only be changed through new settings.
     loose connection boom(:py:attr:`q_factor` >0):
         The joint to the previous boom is loose and the boom can move freely in all spherical directions,
-        i.e. it represents a wire, exhibiting pendulum movement with respect to the local center of mass.
+        i.e. it represents a wire (with load), exhibiting pendulum movement with respect to the local center of mass.
         :py:attr:`q_factor` serves at the same time as a definition of the pendulum damping.
+
+    .. limitation:: The wire is always streched (stiff) and free-falling movement of the load
+       (e.g. due to high accelerations of parent boom or length changes) lead to error messages.
 
     Basic boom movements are
 
@@ -116,7 +120,7 @@ class Boom(object):
                while the active work variables are the cartesian origin, direction and length
         q_factor (float)=0.0: optional possibility to implement a loose connection between booms.
 
-            * if q_factor=0.0, the connection to the parent boom is stiff according to the boom angle setting
+            * if q_factor=0.0, the connection to the parent boom is stiff according to the boom angle settings
             * if q_factor > 0, the crane boom (the wire) is implemented as a stiff rod
               with a loose connection hanging from the parent boom.
             * The q_factor denotes the dimensionless quality factor (energy stored/energy lost per radian),
@@ -131,8 +135,8 @@ class Boom(object):
               :math:`\tau`: characteristic damping time
               :math:`\gamma`: pendulum damping.
               This does not cover critically and over-damped systems, which are in any case not realistic for crane wires).
-              In general the `q_factor` is a fixed parameter, but for testing purposes :py:meth:`.damping`
-              is included, which allows changing of related parameters in a consistent way.
+              In many systems the `q_factor` is a fixed parameter, but for testing purposes and if the wire length changes,
+              :py:meth:`.damping` is included, which allows changing of related parameters in a consistent way.
 
 
         limits (tuple): Optional tuple of control limits for active boom control. See ControlLimits
@@ -154,6 +158,7 @@ class Boom(object):
         q_factor: float = 0.0,
         limits: tuple[float, float, float] | None = None,
         tolerance: float = 1e-5,
+        additional_checks: bool = False,
         **kwargs: Any,  # for compatibility with derived classes
     ):
         self._model: py_crane.crane.Crane = model
@@ -163,11 +168,12 @@ class Boom(object):
         self.description: str = description
         self.q_factor: float = q_factor
         self.tolerance: float = tolerance
+        self.additional_checks = additional_checks
         self.direction: TVector = np.array((0.0, 0.0, -1.0), dtype=np.float64)  # default for non-fixed booms
-        # velocity of CoM relative to .origin (for pendulum)
-        self.r_v: TVector = np.array((0.0, 0.0, 0.0), dtype=np.float64)
-        # acc. of CoM relative to .origin (for pendulum)
-        self.r_acc: TVector = np.array((0.0, 0.0, 0.0), dtype=np.float64)
+        self.r_v: TVector = np.array(
+            (0.0, 0.0, 0.0), dtype=np.float64
+        )  # velocity of CoM relative to .origin (pendulum)
+        self.r_acc: TVector = np.array((0.0, 0.0, 0.0), dtype=np.float64)  # acc. of CoM relative to .origin (pendulum)
         # default animation line width of boom. Can be changed, e.g. 10 pedestal and 2 for wire.
         # self.animationLW: int = 5
         self.origin: TVector
@@ -189,7 +195,7 @@ class Boom(object):
         # rot denotes the rotation which turns (0,0,1) into the direction
         self._rot: Rot = Rot.identity() if self.anchor0 is None else self.anchor0._rot * rot_from_spherical(boom[1:])
         self.direction = self._rot.apply((0.0, 0.0, 1.0))
-        self._new_len: float | None  # place holder for length changes
+        self._new_len: float | None = None  # place holder for length changes
         # self._c_m = np.array( (0.0, 0.0, 0.0), dtype=np.float64) # just to make _c_m known. Updated by method c_m
         # save the current value, running method self.c_m
         self._c_m: TVector = self.c_m
@@ -304,8 +310,8 @@ class Boom(object):
     @property
     def c_m(self) -> TVector:
         """Updates and returns the local center of mass point relative to self.origin."""
-        self._c_m = self.mass_center[0] * self.length * self.direction + np.array(
-            (self.mass_center[1], self.mass_center[2], 0), float
+        self._c_m = self.mass_center[0] * self.length * self.direction + (
+            np.array((self.mass_center[1], self.mass_center[2], 0), float)
         )
         return self._c_m
 
@@ -323,15 +329,15 @@ class Boom(object):
         if self.q_factor != 0.0:
             assert self.anchor0 is not None, "Flexible first booms are so far not implemented"
             # pre-calculated loss term used in .pendulum()
+            length = self.length if self._new_len is None else (self.length + self._new_len) / 2
             if q_factor is not None:
                 self.q_factor = q_factor
-                self._damping_time = sqrt(self.length / 9.81 * (self.q_factor**2 + 0.25))
+                self._damping_time = sqrt(length / 9.81 * (self.q_factor**2 + 0.25))
             elif damping_time is not None:  # new damping time. Change q_factor
-                self.q_factor = sqrt(damping_time**2 * 9.81 / self.length - 0.25)
+                self.q_factor = sqrt(damping_time**2 * 9.81 / length - 0.25)
                 self._damping_time = damping_time
         else:
             self._damping_time = 0.0
-        self._new_len = None  # store wire length changes, so that they can be affectuated during .calc_statics_dynamics
         return self._damping_time
 
     def update_child(self, change: Change = Change.ALL):
@@ -393,9 +399,7 @@ class Boom(object):
             dt (float)=None: for dynamic calculations, the time for the movement must be provided
               and is then used to calculate torque and force
         """
-        if (
-            self.q_factor != 0.0
-        ):  # non-fixed boom, which might be moving or there might be pending origin/length changes
+        if self.q_factor != 0.0:  # non-fixed boom. Might be moving or there might be pending origin/length changes
             if dt is None:
                 self._c_m_sub = (self.mass, self.origin + self.c_m)
                 self._pendulum_instantaneous()
@@ -442,6 +446,34 @@ class Boom(object):
         self.origin = self.anchor0.end
         self._rot = self.anchor0.rot() * rot_from_spherical(self.boom)
 
+    @staticmethod
+    def _energy(mass: float, c_m: np.ndarray, speed: np.ndarray):
+        """Calculate the current energy in the pendulum. Should not be used for other booms.
+
+        Implemented as staticmethod to not get many duplicates of the function made.
+
+        Args:
+            mass (float): mass of the boom (load)
+            c_m (float): vector from origin to center of mass
+            speed: the current speed of the c_m
+        """
+        return mass * (
+            9.81 * (np.linalg.norm(c_m) - np.dot(c_m, np.array((0, 0, -1), float))) + 0.5 * np.dot(speed, speed)
+        )
+
+    @staticmethod
+    def _angular_momentum(mass: float, c_m: np.ndarray, speed: np.ndarray):
+        """Calculate the current energy in the pendulum. Should not be used for other booms.
+
+        Implemented as staticmethod to not get many duplicates of the function made.
+
+        Args:
+            mass (float): mass of the boom (load)
+            c_m (float): vector from origin to center of mass
+            speed: the current speed of the c_m
+        """
+        return mass * np.cross(c_m, speed)
+
     def pendulum(self, dt: float):
         r"""For a non-stiff connection, if the _c_m is not exactly below origin, the _c_m acts as a damped pendulum.
 
@@ -484,7 +516,9 @@ class Boom(object):
 
         """
 
-        def ivp_fun(t: float, y: np.ndarray, r2: float, g: np.ndarray, dr_dt: np.ndarray | None, l_fac: float | None):
+        def ivp_fun(
+            t: float, y: np.ndarray, r2: float, g: np.ndarray, dr_dt: np.ndarray | None, l0: float, dl_dt: float | None
+        ):
             """Solve the initial value problem of the pendulum dr/dt = f(t,r), r(t=0) = r0. Without losses.
 
             Args:
@@ -494,21 +528,17 @@ class Boom(object):
                 r2 (float): the squared pendulum radius with respect to COM
                 g (float): gravitational acceleration as ndarray
                 dr_dt (ndarray): Optional movement of the origin through dt
-                l_fac (float): Optional change of wire length through dt: l(t) = l0*(1+l_fac)*t
+                l0 (float): start length of wire. Used only if wire length changes
+                dl_dt (float): Optional change of wire length through dt: l(t) = l0 + dl_dt* t
             """
-            r = y[:3] if dr_dt is None else y[:3] - dr_dt * t
-            v = y[3:]  # if dr_dt is None else y[3:] - dr_dt
-            if l_fac is not None:
-                fac = 1.0 + l_fac * t
-                r *= fac
-                r2 *= fac * fac
-            # print(f"IVP@{t}: {dr_dt}, {np.dot(r, dr_dt)}")
-            term1 = np.cross(r, np.cross(r, g))
-            term2 = np.dot(v, v) * r
-            self.r_acc = -((term1 + term2) / r2)
-            #            print(f"IVP@{t}: {cartesian_to_spherical(r, True)} -> {cartesian_to_spherical(self.r_acc,True)[1]}")
-            # if dr_dt is not None:
-            #     v += dr_dt
+            r = y[:3]
+            v = y[3:] if dr_dt is None else y[3:] - dr_dt
+            if dl_dt is not None:
+                l0 += dl_dt * t
+                r2 = l0 * l0
+            tangential = np.cross(r, np.cross(r, g))
+            centripetal = np.dot(v, v) * r
+            self.r_acc = -((tangential + centripetal) / r2)
             return np.append(v, self.r_acc)
 
         assert self.anchor0 is not None, f"pendulum() called on fixation {self.name}"
@@ -523,15 +553,22 @@ class Boom(object):
             )
             and self.mass_center[0] * self.length > 1e-10  # pendulum length not too short
         ):
+            R = self.mass_center[0] * self.length  # pendulum radius wrt. center of mass
+            if self.additional_checks:
+                e0 = Boom._energy(self.mass, self._c_m, self.r_v)
+                lz0 = Boom._angular_momentum(self.mass, self._c_m, self.r_v)
             if np.allclose(self.origin, self.anchor0.end):
                 dr_dt = None
             else:
                 dr_dt = (self.anchor0.end - self.origin) / dt  # translation in time interval
             if self._new_len is None:
-                l_fac = None
+                dl_dt = None
             else:
-                l_fac = (self._new_len / self.length - 1.0) / dt
-            R = self.mass_center[0] * self.length  # pendulum radius wrt. center of mass
+                dl_dt = (self._new_len - self.length) / dt
+                self.damping(q_factor=self.q_factor)  # re-calculate due to new length
+                self.boom[0] = self._new_len
+                self._new_len = None
+
             if R > 1e-6:
                 r2 = R * R
                 g = np.array((0.0, 0.0, -9.81), float)
@@ -541,14 +578,16 @@ class Boom(object):
                     ivp_fun,
                     t_span=[0, dt],
                     y0=np.append(r, v),
-                    method="RK45",  # BDF',
-                    args=(r2, g, dr_dt, l_fac),  # type: ignore[reportArgumentType]  ## according to spec
+                    method="RK45",  #'RK23' 'DOP853' 'Radau' 'LSODA' "BDF" "RK45"
+                    args=(r2, g, dr_dt, R, dl_dt),  # type: ignore[reportArgumentType]  ## according to spec
                     atol=self.tolerance,
                 )
-                assert sol.status == 0, f"Pendulum solver did not succeed with dt:{dt}. Status:{sol.status}"
+                if sol.status != 0:
+                    logger.error(f"r:{r}, v:{v}, r2:{r2}, dr/dt:{dr_dt}, l0:{R}, dl_dt:{dl_dt}")
+                    raise AssertionError(f"Pendulum solver did not succeed with dt:{dt}. Status:{sol.status}") from None
                 y_t = sol.y[:, -1]  # last column
-                position = y_t[:3] if dr_dt is None else y_t[:3] + dr_dt * dt  # position of CoM relative to origin
-                self.r_v = y_t[3:] if dr_dt is None else y_t[3:] + dr_dt
+                position = y_t[:3]  # if dr_dt is None else y_t[:3] + dr_dt * dt  # position of CoM relative to origin
+                self.r_v = y_t[3:]  # if dr_dt is None else y_t[3:] + dr_dt
                 if dt >= self._damping_time:  # pendulum stops within dt
                     self.r_v = np.array((0, 0, 0), float)
                 else:
@@ -558,11 +597,26 @@ class Boom(object):
                 rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom
                 self.boom[1:] = cartesian_to_spherical(rel_direction)[1:]
                 self._c_m = position
-            elif l_fac is not None:
-                self.boom[0] = self._new_len
-            self._new_len = None
             self.origin = self.anchor0.end
             self._c_m_sub = (self.mass, self.origin + self.c_m)
+
+            if self.model.current_time > 0.0 and np.dot(self.r_acc, self._c_m) > 1e-10:
+                logger.warning(
+                    f"Free fall of load detected at time {self.model.current_time}. Acc.:{np.dot(self.r_acc, self._c_m)}"
+                )
+            if self.additional_checks and dr_dt is None and dl_dt is None and self.model.current_time > 0.0:
+                e1 = Boom._energy(self.mass, self._c_m, self.r_v)
+                if e1 - e0 > 1e-7:
+                    logger.error(f"Pendulum energy change @{self.model.current_time} {e0}->{e1}")
+                    logger.error(f"   c_m:{self._c_m}, speed:{self.r_v}, damping:{self._damping_time}")
+                    logger.error(
+                        f"   tangential:{np.cross(self._c_m, np.cross(self._c_m, g))}, centripetal:{np.dot(self.r_v, self.r_v) * self._c_m}"
+                    )
+
+                lz1 = Boom._angular_momentum(self.mass, self._c_m, self.r_v)
+                if abs(lz1[2]) - abs(lz0[2]) > 1e-7:  # not np.allclose( lz0, lz1):
+                    logger.error(f"Pendulum angular momentum increase @{self.model.current_time} {lz0[2]}->{lz1[2]}")
+                    logger.error(f"   c_m:{self._c_m}, speed:{self.r_v}, damping:{self._damping_time}")
             # print(f"origin:{self.origin[0]}, d_end:{self.end[0]-self.origin[0]}, speed:{self.r_v[0]}")
 
     def pendulum_relax(self):

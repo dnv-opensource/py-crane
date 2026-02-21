@@ -8,7 +8,7 @@ from component_model.utils.transform import cartesian_to_spherical
 from scipy.spatial.transform import Rotation as Rot
 
 from py_crane.boom import Boom
-from py_crane.enum import Change
+from py_crane.enums import Change
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +115,7 @@ class Crane(object):
         self.boom_: Boom = self.boom0  # keep track of the last boom
         self.torque = np.array((0, 0, 0), dtype=np.float64)
         self.force = np.array((0, 0, 0), dtype=np.float64)
+        self.current_time: float = 0.0  # used to make current_time from do_step known for the whole crane
 
     @property
     def boom0(self) -> Boom:
@@ -284,6 +285,7 @@ class Crane(object):
 
     def do_step(self, current_time: float, step_size: float) -> bool:
         """Do a simulation step of size `dt` at `time` ."""
+        self.current_time = current_time
         if any(acc != 0 for acc in self.d_velocity):  # linear acceleration ongoing
             self._velocity += self.d_velocity * step_size
         if any(v != 0 for v in self._velocity):  # position change ongoing

@@ -41,7 +41,6 @@ def _crane():
         name="wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=50.0,  # so far basically the hook
-        mass_rng=(50, 2000),
         mass_center=1.0,
         boom=(0.5, np.radians(90), 0),
         q_factor=10.0,
@@ -156,6 +155,25 @@ def test_animation_control(crane: Crane, show: bool = False):
 
 
 def test_playback_lines(show: bool = False):
+    # first do a one-record case (which can cause trouble)
+    with pytest.raises(AssertionError) as err:
+        ani = AnimatePlayBackLines(
+            data=[], lw=(10, 2, 1), figsize=(10, 10), interval=1000, title="Test of AnimatePlayBackLines"
+        )
+    assert err.value.args[0] == "No data. Cannot animate."
+    data0 = (
+        np.array((0,), float),  # time
+        np.zeros(3).reshape((1, 3)),  # base
+        np.array(((0, 0, 1),), float),  # end of base
+        np.array(((1, 0, 1),), float),  # end of next
+        np.array(((1, 0, 0),), float),  # 'wire'
+    )
+    ani = AnimatePlayBackLines(
+        data=data0, lw=(10, 2, 1), figsize=(10, 10), interval=1000, title="Test of AnimatePlayBackLines"
+    )
+    if show:
+        ani.do_animation()
+
     data = (
         np.array((0, 1, 2, 3), float),  # time
         np.zeros(12).reshape((4, 3)),  # base
@@ -181,5 +199,5 @@ if __name__ == "__main__":
     pillog.setLevel(logging.WARNING)
 
     # test_animation_sequence(_crane(), show=True)
-    test_animation_control(_crane(), show=True)
-    # test_playback_lines(show=True)
+    # test_animation_control(_crane(), show=True)
+    test_playback_lines(show=True)

@@ -8,7 +8,7 @@ import numpy as np
 from component_model.model import Model
 
 from py_crane.boom import Boom
-from py_crane.enum import Change
+from py_crane.enums import Change
 
 # from py_crane.crane import Crane
 

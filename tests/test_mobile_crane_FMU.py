@@ -143,7 +143,7 @@ def test_fmu():
 # @pytest.mark.skip("Run the FMU")
 def test_run_mobilecrane_static(mobile_crane_fmu: Path, show: bool = False):
     """Load the FMU and run it using fmpy."""
-    print("Start simulation")
+    logger.info("Start simulation")
     result = simulate_fmu(  # static run
         str(mobile_crane_fmu),
         stop_time=0.1,
@@ -240,11 +240,11 @@ def test_run_mobilecrane_move(mobile_crane_fmu: Path, show: bool = False):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     crane = _mobile_crane_fmu()
     # test_fmu()
     # test_mass_center()
     # test_mobilecrane_fmu( crane, show=True)
     # test_run_mobilecrane_static( crane, show=True)
-    test_run_mobilecrane_move(crane, show=True)
+    # test_run_mobilecrane_move(crane, show=True)

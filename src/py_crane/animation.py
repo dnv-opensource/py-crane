@@ -270,7 +270,6 @@ class AnimatePlayBackLines(object):
         figsize (tuple) = (8,8): figure size in inches
         interval (int) = 200: Time in milliseconds between animation frames
         title (str) = "Lines re-player": Figure title
-        **kwargs: optional additional keyword arguments to generator function
     """
 
     def __init__(
@@ -281,6 +280,7 @@ class AnimatePlayBackLines(object):
         interval: int = 200,
         title: str = "Crane animation",
     ):
+        assert len(data) > 0, "No data. Cannot animate."
         self.data = data
         self.lw = (1,) * (len(data) - 1) if lw is None else lw
         self.times = data[0]
@@ -291,19 +291,19 @@ class AnimatePlayBackLines(object):
         self.lines: list[list[Line3D]] = []
         self.fig: Figure = plt.figure(figsize=self.figsize, layout=None)  # "constrained")
 
-    def _get_axes_lim(self, data: Sequence[np.ndarray]) -> list[list[int]]:
+    def _get_axes_lim(self, data: Sequence[np.ndarray]) -> list[list[float]]:
         """Get the limits of time (data[0]) and all points. Time shall be sorted in ascening order."""
         length = len(data[0])
         assert all(len(data[i + 1]) == length for i in range(len(data) - 1)), (
             f"Columns of 'data' not equal length {length}"
         )
-        assert all(data[i + 1].shape == (length, 3) for i in range(len(data) - 1)), "Data points shall be 3D"
+        assert all(data[i].shape == (length, 3) for i in range(1, len(data))), "Data points shall be 3D"
         assert all(data[0][i] < data[0][i + 1] for i in range(length - 1)), "Column 0 (time) is unsorted"
-        axes_lim = [[int(np.min(data[1][k])) - 1, int(np.max(data[1][k])) + 1] for k in range(3)]
-        for i in range(len(data) - 2):
+        axes_lim = [[float("inf"), float("-inf")], [float("inf"), float("-inf")], [float("inf"), float("-inf")]]
+        for i in range(len(data) - 1):
             for k in range(3):
-                axes_lim[k][0] = min(axes_lim[k][0], int(np.min(data[i + 2]) - 1))
-                axes_lim[k][1] = max(axes_lim[k][1], int(np.max(data[i + 2]) + 1))
+                axes_lim[k][0] = min(axes_lim[k][0], int(np.min(data[i + 1]) - 1))
+                axes_lim[k][1] = max(axes_lim[k][1], int(np.max(data[i + 1]) + 1))
         return axes_lim
 
     def init_fig(self) -> None:
@@ -314,7 +314,10 @@ class AnimatePlayBackLines(object):
         ax.set_zlim(self.axes_lim[2])
         start: np.ndarray
         end: np.ndarray
-        for start, end, lw in zip(self.data[1:-1], self.data[2:], self.lw, strict=True):
+
+        for i in range(1, len(self.data) - 1):
+            start, end, lw = self.data[i][0], self.data[i + 1][0], self.lw[i - 1]
+            # start, end, lw in zip(self.data[1:-1], self.data[2:], self.lw, strict=True):
             self.lines.append(
                 cast(
                     list[Line3D],
