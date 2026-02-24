@@ -36,7 +36,7 @@ class MobileCrane(CraneFMU):
         boomAngle: str = "90deg",
         wire_mass_range: tuple[str, str] = ("50kg", "2000 kg"),
         wire_mass: str | None = None,
-        wire_length: float = 1e-6,
+        wire_length: float = 0.1,
         **kwargs: Any,
     ):
         super().__init__(name=name, description=description, author=author, version=version, degrees=degrees, **kwargs)
@@ -63,9 +63,9 @@ class MobileCrane(CraneFMU):
             mass_center=0.99,
             mass_rng=wire_mass_range,
             boom=(f"{wire_length}m", "90deg", "0 deg"),
-            boom_rng=(("1e-6 m", boomLength1), (), ()),
+            boom_rng=((f"{wire_length}m", boomLength1), (), ()),
             q_factor=50.0,
-            animationLW=2,
+            additional_checks=True,
         )
 
         # make sure that _comSub is calculated for all booms:

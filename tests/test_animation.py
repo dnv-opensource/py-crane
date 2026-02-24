@@ -1,10 +1,11 @@
 import logging
+from functools import partial
 from typing import Any, Generator
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest  # noqa: F401
-from component_model.utils.controls import Controls
+from component_model.utils.controls import Control, Controls
 from matplotlib.animation import FuncAnimation
 
 from py_crane.animation import AnimateCrane, AnimatePlayBackLines
@@ -46,6 +47,14 @@ def _crane():
         q_factor=10.0,
     )
     return crane
+
+
+def _boom(b: Boom, idx: int, x: float | None = None) -> float:
+    """Move boom 'b', or return current setting. Used as partial() to define Control."""
+    if x is not None:
+        arg = [None if i != idx else x for i in range(3)]
+        b.boom_setter(arg)
+    return b.boom[idx]
 
 
 def animate_sequence(crane: Crane, seq: tuple[tuple[Boom, float], ...] = (), nSteps: int = 10):
@@ -120,29 +129,24 @@ def movement(crane: Crane, dt: float = 0.01, t_end: float = 10.0) -> Generator[t
     """
     # initial definition of controls and start values
     controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
-    f, p, b1, r = list(crane.booms())
-    controls.append("turn", (None, (-0.31, 0.31), (-0.16, 0.16)))  # free rotation, max 1 turn/20sec, 2sec to max
-    controls.append("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)))  # 90 deg, 5/-2.5 deg/sec, 2sec to max
-    controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
-    controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
-    controls.current[2][0] = 8.0  # b1 starts with 8m
-    controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
-    controls.current[3][0] = 0.5  # wire length starts 0.5m
+    f, p, b1, w = list(crane.booms())
+    controls.extend(
+        (
+            Control("turn", (None, (-0.31, 0.31), (-0.16, 0.16)), rw=partial(_boom, p, 2)),
+            Control("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)), rw=partial(_boom, b1, 1)),
+            Control("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)), rw=partial(_boom, b1, 0)),
+            Control("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)), rw=partial(_boom, w, 0)),
+        )
+    )
 
     # From time 0 we set three goals
-    controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
-    controls.setgoal("luff", 0, np.radians(45), 0.0)  # luff boom to 45 deg
-    controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
+    controls["turn"].setgoal(0, np.radians(90))  # turn pedestal 90 deg
+    controls["luff"].setgoal(0, np.radians(45))  # luff boom to 45 deg
+    controls["boom"].setgoal(1, 0.1)  # increase length 0.1m/s
     for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
-        if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
-            controls.setgoal("wire", 1, 1.0, 10.0)
+        if time > 10 and not len(controls[3].goal):  # Start to increase wire length with 1m/s
+            controls["wire"].setgoal(1, 1.0)
         controls.step(time, dt)
-        if controls.goals[3] is not None:
-            r.boom_setter((controls.current[3][0], None, None))
-        if controls.goals[1] is not None or controls.goals[2] is not None:
-            b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
-        if controls.goals[0] is not None:
-            p.boom_setter((None, None, controls.current[0][0]))
         crane.do_step(time, dt)
         yield (time + dt, crane)
 
@@ -169,7 +173,7 @@ def test_playback_lines(show: bool = False):
         np.array(((1, 0, 0),), float),  # 'wire'
     )
     ani = AnimatePlayBackLines(
-        data=data0, lw=(10, 2, 1), figsize=(10, 10), interval=1000, title="Test of AnimatePlayBackLines"
+        data=data0, lw=(10, 2, 1), figsize=(10, 10), interval=1000, title="Test of AnimatePlayBackLines. Static."
     )
     if show:
         ani.do_animation()
@@ -182,7 +186,7 @@ def test_playback_lines(show: bool = False):
         np.array(((1, 0, 0), (2, 1, 0), (3, 2, 0), (4, 3, 0)), float),  # 'wire'
     )
     ani = AnimatePlayBackLines(
-        data=data, lw=(10, 2, 1), figsize=(10, 10), interval=1000, title="Test of AnimatePlayBackLines"
+        data=data, lw=(10, 2, 1), figsize=(10, 10), interval=1000, title="Test of AnimatePlayBackLines. 4 time steps"
     )
     assert np.allclose(ani.axes_lim, [[-1, 5], [-1, 5], [-1, 5]])
     if show:
@@ -190,7 +194,7 @@ def test_playback_lines(show: bool = False):
 
 
 if __name__ == "__main__":
-    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     logging.basicConfig(level=logging.DEBUG)
     parsolog = logging.getLogger("parso")
@@ -200,4 +204,4 @@ if __name__ == "__main__":
 
     # test_animation_sequence(_crane(), show=True)
     # test_animation_control(_crane(), show=True)
-    test_playback_lines(show=True)
+    # test_playback_lines(show=True)

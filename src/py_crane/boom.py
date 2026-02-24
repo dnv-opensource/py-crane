@@ -554,7 +554,7 @@ class Boom(object):
             and self.mass_center[0] * self.length > 1e-10  # pendulum length not too short
         ):
             R = self.mass_center[0] * self.length  # pendulum radius wrt. center of mass
-            if self.additional_checks:
+            if self.model.current_time > 6.0:  # ??self.additional_checks:
                 e0 = Boom._energy(self.mass, self._c_m, self.r_v)
                 lz0 = Boom._angular_momentum(self.mass, self._c_m, self.r_v)
             if np.allclose(self.origin, self.anchor0.end):
@@ -570,6 +570,10 @@ class Boom(object):
                 self._new_len = None
 
             if R > 1e-6:
+                if self.additional_checks:
+                    e0 = Boom._energy(self.mass, self._c_m, self.r_v)
+                    lz0 = Boom._angular_momentum(self.mass, self._c_m, self.r_v)
+
                 r2 = R * R
                 g = np.array((0.0, 0.0, -9.81), float)
                 r = R * self.direction

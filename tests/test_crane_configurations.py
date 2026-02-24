@@ -1,12 +1,14 @@
 import logging
+from functools import partial
 from math import sqrt
 from typing import Generator
 
 import numpy as np
 import pytest  # noqa: F401
-from component_model.utils.controls import Controls
+from component_model.utils.controls import Control, Controls
 
 from py_crane.animation import AnimateCrane
+from py_crane.boom import Boom
 from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,14 @@ def _mobile_crane():
     return crane
 
 
+def _boom(b: Boom, idx: int, x: float | None = None) -> float:
+    """Move boom 'b', or return current setting. Used as partial() to define Control."""
+    if x is not None:
+        arg = [None if i != idx else x for i in range(3)]
+        b.boom_setter(arg)
+    return b.boom[idx]
+
+
 def move_mobile_crane(
     crane: Crane, dt: float = 0.01, t_end: float = 10.0
 ) -> Generator[tuple[float, Crane], None, None]:
@@ -65,29 +75,24 @@ def move_mobile_crane(
     """
     # initial definition of controls and start values
     controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
-    f, p, b1, r = list(crane.booms())
-    controls.append("turn", (None, (-0.31, 0.31), (-0.16, 0.16)))  # free rotation, max 1 turn/20sec, 2sec to max
-    controls.append("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)))  # 90 deg, 5/-2.5 deg/sec, 2sec to max
-    controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
-    controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
-    controls.current[2][0] = 8.0  # b1 starts with 8m
-    controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
-    controls.current[3][0] = 0.5  # wire length starts 0.5m
+    f, p, b1, w = list(crane.booms())
+    controls.extend(
+        (
+            Control("turn", (None, (-0.31, 0.31), (-0.16, 0.16)), rw=partial(_boom, p, 2)),
+            Control("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)), rw=partial(_boom, b1, 1)),
+            Control("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)), rw=partial(_boom, b1, 0)),
+            Control("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)), rw=partial(_boom, w, 0)),
+        )
+    )
 
     # From time 0 we set three goals
-    controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
-    controls.setgoal("luff", 0, np.radians(45), 0.0)  # luff boom to 45 deg
-    controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
+    controls["turn"].setgoal(0, np.radians(90))  # turn pedestal 90 deg
+    controls["luff"].setgoal(0, np.radians(45))  # luff boom to 45 deg
+    controls["boom"].setgoal(1, 0.1)  # increase length 0.1m/s
     for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
-        if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
-            controls.setgoal("wire", 1, 1.0, 10.0)
+        if time > 10 and not len(controls[3].goal):  # Start to increase wire length with 1m/s
+            controls["wire"].setgoal(1, 1.0)
         controls.step(time, dt)
-        if controls.goals[3] is not None:
-            r.boom_setter((controls.current[3][0], None, None))
-        if controls.goals[1] is not None or controls.goals[2] is not None:
-            b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
-        if controls.goals[0] is not None:
-            p.boom_setter((None, None, controls.current[0][0]))
         crane.do_step(time, dt)
         yield (time + dt, crane)
 
@@ -96,7 +101,7 @@ def test_mobile_crane(show: bool = False):
     crane = _mobile_crane()
     if not show:  # if nothing can be shown, we do not need to run it
         return
-    ani = AnimateCrane(crane, move_mobile_crane, dt=0.1, t_end=9.0)  # type: ignore  ## It is a Generator!
+    ani = AnimateCrane(crane, move_mobile_crane, dt=0.1, t_end=15.0)  # type: ignore  ## It is a Generator!
     ani.do_animation()
 
 
@@ -152,19 +157,20 @@ def move_knuckle_boom_crane(
     # initial definition of controls and start values
     controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
     f, p, b1, b2, b3, w = list(crane.booms())
-    controls.append("luff3", (None, (-0.09, 0.09), (-0.09, 0.05)))  # 360 deg, 5/-2.5 deg/sec, 2sec to max
-    controls.append("luff2", (None, (-0.18, 0.09), (-0.09, 0.05)))  # 360 deg, 5/-2.5 deg/sec, 2sec to max
-    controls.append("luff1", (None, (-0.09, 0.04), (-0.09, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
-    controls.append("wire", ((0, 50), (-0.1, 1.0), (-0.5, 0.5)))  # 0m..50m, -0.1/1 m/sec, 2sec to max
-    controls.append("turn", (None, (-0.9, 0.9), (-0.9, 0.9)))  # 360 deg, 5/-2.5 deg/sec, 2sec to max
-    controls.current[0][0] = b3.boom[1]
-    controls.current[1][0] = b2.boom[1]
-    controls.current[2][0] = b1.boom[1]
+    controls.extend(
+        (
+            Control("luff3", (None, (-0.09, 0.09), (-0.09, 0.05)), rw=partial(_boom, b3, 1)),
+            Control("luff2", (None, (-0.18, 0.09), (-0.09, 0.05)), rw=partial(_boom, b2, 1)),
+            Control("luff1", (None, (-0.09, 0.04), (-0.09, 0.05)), rw=partial(_boom, b1, 1)),
+            Control("wire", ((0, 50), (-0.1, 1.0), (-0.5, 0.5)), rw=partial(_boom, w, 0)),
+            Control("turn", (None, (-0.9, 0.9), (-0.9, 0.9)), rw=partial(_boom, p, 2)),
+        )
+    )
 
     # Set initial goals
-    controls.setgoal("luff3", 0, np.radians(0), 0.0)
-    controls.setgoal("luff2", 0, np.radians(45), 0.0)  # luff boom to 45 deg
-    controls.setgoal("luff1", 0, 0.0, 0.0)  # luff to align with pedestal
+    controls["luff3"].setgoal(0, np.radians(0))
+    controls["luff2"].setgoal(0, np.radians(45))  # luff boom to 45 deg
+    controls["luff1"].setgoal(0, 0.0)  # luff to align with pedestal
     for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
         if abs(time - 10.0) < 1e-6:  # goal2 reached
             assert np.allclose(p.end, (0, 0, 1)), "Pedestal unchanged (straight up)"
@@ -175,27 +181,16 @@ def move_knuckle_boom_crane(
             _b3 = (-12 / sqrt(2), 0, 4 + 12 / sqrt(2))
             assert np.allclose(b2.end, _b2, atol=0.01), f"45 deg in negative x-direction? {b2.end}!={_b2}"
             assert np.allclose(b3.end, _b3, atol=0.01), f"45 deg in negative x-direction? {b3.end}!={_b3}"
-            controls.current[3][0] = 1e-6
-            controls.setgoal("wire", 0, 10.0, 35.0)
+            controls["wire"].setgoal(0, 10.0)
         if abs(time - 47.0) < 1e-6:  # turn the crane (causes pendulum actions)
             _w = (-12 / sqrt(2), 0, 4 + 12 / sqrt(2) - 10)
             assert np.allclose(w.end, _w, atol=0.01), f"Load position before turn {w.end}!={_w}"
             w.damping(q_factor=100.0)
-            controls.setgoal("turn", 2, 0.09, 47.0)
+            controls["turn"].setgoal(2, 0.09)
         if abs(time - 54.0) < 1e-6:  # stop turning (causes pendulum actions)
-            controls.setgoal("turn", 2, None, 54.0)
+            controls["turn"].setgoal(2, None)
 
         controls.step(time, dt)
-        if controls.goals[3] is not None:
-            w.boom_setter((controls.current[3][0], None, None))
-        if controls.goals[2] is not None:
-            b1.boom_setter((None, controls.current[2][0], None))
-        if controls.goals[1] is not None:
-            b2.boom_setter((None, controls.current[1][0], None))
-        if controls.goals[0] is not None:
-            b3.boom_setter((None, controls.current[0][0], None))
-        if controls.goals[4] is not None:
-            p.boom_setter((None, None, controls.current[4][0]))
         crane.do_step(time, dt)
         yield (time + dt, crane)
 
@@ -217,5 +212,5 @@ if __name__ == "__main__":
     pillog = logging.getLogger("PIL")
     pillog.setLevel(logging.WARNING)
 
-    # test_mobile_crane(show=True)
-    test_knuckle_boom_crane(show=True)
+    test_mobile_crane(show=True)
+    # test_knuckle_boom_crane(show=True)

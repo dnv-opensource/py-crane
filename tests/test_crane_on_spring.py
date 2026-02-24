@@ -10,9 +10,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from component_model.model import Model
-from component_model.utils.controls import Controls
+from component_model.utils.controls import Control, Controls
 
 from py_crane.animation import AnimateCrane
+from py_crane.boom import Boom
 from py_crane.crane import Crane
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
@@ -37,11 +38,11 @@ def mobile_crane_fmu():
     return _get_fmu("MobileCrane.fmu")
 
 
-def make_fmu(build_path: Path, source: str, resource: Path, newargs: dict[str, Any] | None = None):
+def make_fmu(build_path: Path, source: Path, resource: Path, newargs: dict[str, Any] | None = None):
     """Make single FMU. Non-default arguments allowed."""
     build_path.mkdir(exist_ok=True)
     fmu = Model.build(
-        str(build_path / source),
+        str(source),
         project_files=[resource],
         dest=build_path,
         newargs=newargs,
@@ -52,25 +53,27 @@ def make_fmu(build_path: Path, source: str, resource: Path, newargs: dict[str, A
 def make_fmus():
     """Re-make the FMUs. Only default arguments used here."""
     make_fmu(
-        Path(__file__).parent.parent / "examples", "mobile_crane.py", Path(__file__).parent.parent / "src" / "py_crane"
+        Path(__file__).parent.parent / "examples",
+        Path(__file__).parent.parent / "src" / "py_crane" / "mobile_crane.py",
+        Path(__file__).parent.parent / "src" / "py_crane",
     )
     make_fmu(
-        Path(__file__).parent.parent.parent / "component-model" / "examples",
-        "oscillator_6dof_fmu.py",
+        Path(__file__).parent.parent / "examples",
+        Path(__file__).parent.parent.parent / "component-model" / "examples" / "oscillator_6dof_fmu.py",
         Path(__file__).parent.parent.parent / "component-model" / "src" / "component_model",
     )
     shutil.copy(
         Path(__file__).parent.parent.parent / "component-model" / "examples" / "HarmonicOscillator6D.fmu",
-        Path(__file__).parent.parent / "src" / "py_crane" / "examples",
+        Path(__file__).parent.parent / "examples",
     )
 
 
 def make_mobile_crane_straight():
     fmu = make_fmu(
         Path(__file__).parent.parent / "examples",
-        "mobile_crane.py",
+        Path(__file__).parent.parent / "src" / "py_crane" / "mobile_crane.py",
         Path(__file__).parent.parent / "src" / "py_crane",
-        newargs={"pedestalCoM": (0.5, 0, 0), "boomAngle": "0 deg", "wire_length": "5 m"},
+        newargs={"pedestalCoM": (0.5, 0, 0), "boomAngle": "0 deg", "wire_length": 5},
     )
     shutil.copy(fmu, fmu.parent / "MobileCraneStraight.fmu")
 
@@ -84,6 +87,14 @@ def _get_fmu(fmu_file: str) -> Path:
     fmu = Path(__file__).parent.parent / "examples" / fmu_file
     assert fmu.exists(), f"{fmu_file} file expected at {fmu}. Not found."
     return fmu
+
+
+def _boom(b: Boom, idx: int, x: float | None = None) -> float:
+    """Move boom 'b', or return current setting. Used as partial() to define Control."""
+    if x is not None:
+        arg = [None if i != idx else x for i in range(3)]
+        b.boom_setter(arg)
+    return b.boom[idx]
 
 
 # def test_visual_simulation_1():
@@ -281,32 +292,24 @@ def test_controlled_crane_on_spring(show: bool = False):
         """
         # initial definition of controls and start values
         controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
-        f, p, b1, r = list(crane.booms())
-        controls.append(
-            "turn", (None, (-0.31, 0.31), (-1, 1))
-        )  # (-0.16, 0.16)))  # free rotation, max 1 turn/20sec, 2sec to max
-        controls.append("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)))  # 90 deg, 5/-2.5 deg/sec, 2sec to max
-        controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
-        controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
-        f, p, b1, r = list(crane.booms())
-        controls.current[2][0] = 8.0  # b1 starts with 8m
-        controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
-        controls.current[3][0] = 0.5  # wire length starts 0.5m
+        f, p, b1, w = list(crane.booms())
+        controls.extend(
+            (
+                Control("turn", (None, (-0.31, 0.31), (-1, 1)), rw=partial(_boom, p, 2)),
+                Control("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)), rw=partial(_boom, b1, 1)),
+                Control("boom", ((8, 50), (-0.7, 0.5), (-0.1, 0.05)), rw=partial(_boom, b1, 0)),
+                Control("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)), rw=partial(_boom, w, 0)),
+            )
+        )
 
         # From time 0 we set three goals
-        controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
-        # controls.setgoal("luff", 0, np.radians(45), 0.0)  # luff boom to 45 deg
-        # controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
+        controls["turn"].setgoal(0, np.radians(90))  # turn pedestal 90 deg
+        controls["luff"].setgoal(0, np.radians(45))  # luff boom to 45 deg
+        # controls["boom"].setgoal(0, 12.0)  # increase length  to 15m (0.1m/s)
         for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
-            # if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
-            #    controls.setgoal("wire", 1, 1.0, 10.0)
+            if time > 10 and not len(controls[3].goal):  # Start to increase wire length with 1m/s
+                controls["wire"].setgoal(1, 1.0)
             controls.step(time, dt)
-            if controls.goals[3] is not None:
-                r.boom_setter((controls.current[3][0], None, None))
-            if controls.goals[1] is not None or controls.goals[2] is not None:
-                b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
-            if controls.goals[0] is not None:
-                p.boom_setter((None, None, controls.current[0][0]))
             crane.do_step(time, dt)  # takes updated force, x and v and calculates updated x and v
             # crane.boom0.translate(-crane.boom0.origin)
             yield (time + dt, crane)
@@ -318,7 +321,7 @@ def test_controlled_crane_on_spring(show: bool = False):
         m=1e7, bL=8.0, wL=1.0, wM=1000.0, wQ=10000
     )  # define a default crane on spring
 
-    ani = AnimateCrane(crane, movement=movement, dt=0.01, t_end=1.2, interval=10, osc=osc)  # type: ignore  ## It is a Generator!
+    ani = AnimateCrane(crane, movement=movement, dt=0.01, t_end=15, interval=10)  # type: ignore  ## It is a Generator!
     ani.do_animation()
 
 
@@ -329,10 +332,9 @@ if __name__ == "__main__":
     'test_mobile_crane_*.py' for the crane
     'test_oscillator_6dof_fmu.py' from the component-model package for the oscillator
     """
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
-    # make_fmus()
-    # make_mobile_crane_straight()
-    # test_mobilecrane(show=True)
+    make_fmus()
+    make_mobile_crane_straight()
     # test_crane_on_spring( show=True)
-    # test_controlled_crane_on_spring(show=True)
+    test_controlled_crane_on_spring(show=True)
