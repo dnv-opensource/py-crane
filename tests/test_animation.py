@@ -25,21 +25,21 @@ def crane(scope: str = "session", autouse: bool = True):
 def _crane():
     crane = Crane()
     _ = crane.add_boom(
-        name="pedestal",
+        "pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
         mass=2000.0,
         mass_center=(0.5, -1, 0.8),
         boom=(3.0, 0, 0),
     )
     _ = crane.add_boom(
-        name="boom1",
+        "boom1",
         description="The first boom. Can be lifted",
         mass=200.0,
         mass_center=0.5,
         boom=(10.0, np.radians(90), 0),
     )
     _ = crane.add_boom(
-        name="wire",
+        "wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=50.0,  # so far basically the hook
         mass_center=1.0,

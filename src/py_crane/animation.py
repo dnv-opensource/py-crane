@@ -9,7 +9,7 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3D
 
-from py_crane.boom import Boom
+from py_crane.boom import Boom, Wire
 from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
@@ -182,14 +182,15 @@ class AnimatePendulum(object):
         # instantiate a very simple crane
         self.crane = Crane()
         self.wire = self.crane.add_boom(
-            name="wire",
+            "wire",
             description="The wire fixed to the fixation. Flexible connection",
             mass=1.0,
             mass_center=1.0,
             boom=(length, *(np.radians(angles) if degrees else angles)),
             q_factor=q_factor,
         )
-        self.wire.r_v = v0
+        assert isinstance(self.wire, Wire)
+        self.wire.cm_v = v0
         self.dt = dt
         self.t_end = t_end
         self.figsize = figsize

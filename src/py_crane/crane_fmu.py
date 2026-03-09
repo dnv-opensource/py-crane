@@ -7,7 +7,8 @@ from component_model.model import Model
 from component_model.variable import Variable
 from component_model.variable_naming import VariableNamingConvention
 
-from py_crane.boom_fmu import BoomFMU
+from py_crane.boom import Boom, Wire
+from py_crane.boom_fmu import BoomFMU, WireFMU
 from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
@@ -119,9 +120,10 @@ class CraneFMU(Model, Crane):
 
     def add_boom(
         self,
-        *args: Any,
+        name: str,
+        /,
         **kwargs: Any,
-    ) -> BoomFMU:
+    ) -> Boom:
         """Add a boom to the crane. Overrides :py:meth:`.Crane.add_boom` to ensure that :py:class:`BoomFMU` is added.
 
         This method represents the recommended way to contruct a crane and then add the booms.
@@ -131,11 +133,13 @@ class CraneFMU(Model, Crane):
             *args: all :py:class:`Boom` positional parameters, excluding ``model`` and ``anchor0``
             **kwargs: all :py:class:`Boom` keyword parameters, excluding ``model`` and ``anchor0``
         """
-        kwargs.update({"model": self})
         if "anchor0" not in kwargs:
             last = self.boom0[-1]
             kwargs.update({"anchor0": last})
-        return BoomFMU(*args, **kwargs)
+        if kwargs.get("q_factor", 0.0) == 0.0:
+            return BoomFMU(self, name, **kwargs)
+        else:
+            return WireFMU(self, name, **kwargs)
 
     def ensure_boom(self, boom: BoomFMU):
         """Ensure that the boom is registered before structured variables are added to it.
@@ -151,7 +155,7 @@ class CraneFMU(Model, Crane):
         """
         self.dirty_do()  # run on_set on all dirty variables
         wire = self.boom0[-1]
-        if wire is not None and wire.q_factor != 0:
+        if isinstance(wire, Wire):
             wire.pendulum_relax()
 
     def do_step(self, current_time: float, step_size: float) -> bool:

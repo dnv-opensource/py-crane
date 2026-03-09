@@ -13,7 +13,7 @@ from component_model.model import Model
 from component_model.utils.controls import Control, Controls
 
 from py_crane.animation import AnimateCrane
-from py_crane.boom import Boom
+from py_crane.boom import Boom, Wire
 from py_crane.crane import Crane
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
@@ -191,21 +191,21 @@ def make_crane_on_spring(
 
     crane = Crane()
     _ = crane.add_boom(
-        name="pedestal",
+        "pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
         mass=pM,
         mass_center=pCoM,
         boom=(pH, 0, 0),
     )
     _ = crane.add_boom(
-        name="boom",
+        "boom",
         description="The first boom. Can be lifted",
         mass=bM,
         mass_center=0.5,
         boom=(bL, bA, 0),
     )
     _ = crane.add_boom(
-        name="wire",
+        "wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=wM,  # so far basically the hook
         mass_rng=(50, 2000),
@@ -293,23 +293,28 @@ def test_controlled_crane_on_spring(show: bool = False):
         # initial definition of controls and start values
         controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
         f, p, b1, w = list(crane.booms())
+        assert isinstance(w, Wire)
+        w.additional_checks = True
         controls.extend(
             (
                 Control("turn", (None, (-0.31, 0.31), (-1, 1)), rw=partial(_boom, p, 2)),
                 Control("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)), rw=partial(_boom, b1, 1)),
                 Control("boom", ((8, 50), (-0.7, 0.5), (-0.1, 0.05)), rw=partial(_boom, b1, 0)),
-                Control("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)), rw=partial(_boom, w, 0)),
+                Control("wire", ((0.5, 50), (-0.1, 1.0), (-0.4, 0.5)), rw=partial(_boom, w, 0)),
             )
         )
 
         # From time 0 we set three goals
+        controls["wire"].setgoal(0, 7.0)  # wire length increase to 9m
         controls["turn"].setgoal(0, np.radians(90))  # turn pedestal 90 deg
         controls["luff"].setgoal(0, np.radians(45))  # luff boom to 45 deg
-        # controls["boom"].setgoal(0, 12.0)  # increase length  to 15m (0.1m/s)
+        controls["boom"].setgoal(0, 12.0)  # increase length  to 15m (0.1m/s)
         for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
-            if time > 10 and not len(controls[3].goal):  # Start to increase wire length with 1m/s
-                controls["wire"].setgoal(1, 1.0)
+            # if abs(time-10.0)<0.5*dt:  # Stop wire length increase
+            #    controls["wire"].setgoal(1, 0.0) # wire length increase with 1m/s
             controls.step(time, dt)
+            # if time > 7.2:
+            #    print(f"w.additional:{w.additional_checks}")
             crane.do_step(time, dt)  # takes updated force, x and v and calculates updated x and v
             # crane.boom0.translate(-crane.boom0.origin)
             yield (time + dt, crane)

@@ -240,11 +240,11 @@ def test_run_mobilecrane_move(mobile_crane_fmu: Path, show: bool = False):
 
 
 if __name__ == "__main__":
-    retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
+    retcode = 0  # pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "True", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     crane = _mobile_crane_fmu()
     # test_fmu()
     # test_mass_center()
     # test_mobilecrane_fmu( crane, show=True)
     # test_run_mobilecrane_static( crane, show=True)
-    # test_run_mobilecrane_move(crane, show=True)
+    test_run_mobilecrane_move(crane, show=True)

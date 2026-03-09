@@ -8,7 +8,7 @@ import pytest  # noqa: F401
 from component_model.utils.controls import Control, Controls
 
 from py_crane.animation import AnimateCrane
-from py_crane.boom import Boom
+from py_crane.boom import Boom, Wire
 from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ np.set_printoptions(precision=4, suppress=True)
 def _pendulum():
     crane = Crane()
     w = crane.add_boom(
-        name="wire",
+        "wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=50.0,  # so far basically the hook
         mass_center=1.0,
@@ -27,6 +27,7 @@ def _pendulum():
         q_factor=10.0,
     )
     crane.position = np.array((0, 0, 1), float)
+    assert isinstance(w, Wire)
     w.pendulum_relax()
     return crane
 
@@ -34,21 +35,21 @@ def _pendulum():
 def _mobile_crane():
     crane = Crane()
     _p = crane.add_boom(
-        name="pedestal",
+        "pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
         mass=2000.0,
         mass_center=(0.5, -1, 0.8),
         boom=(3.0, 0, 0),
     )
     _b = crane.add_boom(
-        name="boom1",
+        "boom1",
         description="The first boom. Can be lifted",
         mass=200.0,
         mass_center=0.5,
         boom=(10.0, np.radians(90), 0),
     )
     _w = crane.add_boom(
-        name="wire",
+        "wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=50.0,  # so far basically the hook
         mass_center=1.0,
@@ -108,41 +109,42 @@ def test_mobile_crane(show: bool = False):
 def _knuckle_boom_crane():
     crane = Crane()
     _p = crane.add_boom(
-        name="pedestal",
+        "pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
         mass=2000.0,
         mass_center=(0.5, -1, 0.8),
         boom=(1.0, 0, 0),
     )
     _b1 = crane.add_boom(
-        name="boom1",
+        "boom1",
         description="The first boom. Can be lifted",
         mass=200.0,
         mass_center=0.5,
         boom=(3.0, np.radians(45), 0),
     )
     _b2 = crane.add_boom(
-        name="boom2",
+        "boom2",
         description="The second boom. Can be lifted",
         mass=200.0,
         mass_center=0.5,
         boom=(5.0, np.radians(170), np.pi),
     )
     _b3 = crane.add_boom(
-        name="boom3",
+        "boom3",
         description="The third boom. Can be lifted",
         mass=200.0,
         mass_center=0.5,
         boom=(7.0, np.radians(170), 0.0),
     )
     _w = crane.add_boom(
-        name="wire",
+        "wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=50.0,  # so far basically the hook
         mass_center=1.0,
         boom=(1e-6, 0, 0),
         q_factor=100.0,
     )
+    assert isinstance(_w, Wire)
     _w.pendulum_relax()
     return crane
 
@@ -157,6 +159,7 @@ def move_knuckle_boom_crane(
     # initial definition of controls and start values
     controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
     f, p, b1, b2, b3, w = list(crane.booms())
+    assert isinstance(w, Wire)
     controls.extend(
         (
             Control("luff3", (None, (-0.09, 0.09), (-0.09, 0.05)), rw=partial(_boom, b3, 1)),
