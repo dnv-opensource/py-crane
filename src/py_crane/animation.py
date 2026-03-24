@@ -13,7 +13,6 @@ from py_crane.boom import Boom, Wire
 from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 FrameGenerator: TypeAlias = Generator[tuple[float, Crane], None, None]
 
@@ -171,7 +170,7 @@ class AnimatePendulum(object):
         dt: float = 0.01,
         t_end: float = 10.0,
         figsize: tuple[int, int] = (8, 8),
-        axes_lim: tuple[tuple[int, int], ...] = ((-10, 10), (-10, 10), (-10, 10)),
+        axes_lim: tuple[tuple[int, int], ...] = ((-10, 10), (-10, 10), (0, 10)),
         interval: int = 10,
         repeat: bool = False,
         title: str = "Pendulum animation",

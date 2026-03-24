@@ -550,16 +550,17 @@ class Wire(Boom):
                 l0 (float): start length of wire. Used only if wire length changes
                 dl_dt (float): Optional change of wire length through dt: l(t) = l0 + dl_dt* t
             """
-            r = y[:3] - (s_v * t + 0.5 * s_acc * t**2)
-            v = y[3:] - (s_v + s_acc * t)
-            # v -= np.dot(r,v)/r2 * v # avoid that numerical issues lead to strange behaviour
+            #            r = y[:3] - (s_v * t + 0.5 * s_acc * t**2)
+            #            v = y[3:] - (s_v + s_acc * t)
+            r = y[:3]  # - 0.5 * s_acc * t**2
+            v = y[3:]  # - s_acc * t
             if dl_dt is not None:
                 lt = l0 + dl_dt * t
                 r2 = lt * lt
                 v += dl_dt
             tangential = np.cross(r, np.cross(r, g))
             centripetal = np.dot(v, v) * r
-            acc = -((tangential + centripetal) / r2)  # + s_acc
+            acc = -((tangential + centripetal) / r2) - s_acc
             # print(f"r[0]:{r[0]}, v:{v}, s_v:{s_v}, s_acc:{s_acc} => acc:{acc}")
             return np.append(v, acc)
 
@@ -626,7 +627,8 @@ class Wire(Boom):
                     v = np.array((0, 0, 0), float)
                 else:
                     v *= 1 - dt / self._damping_time  # see note
-                # v += s_v
+                # v -= s_v
+                # print("PEND", position[0], v[0], s_v[0], s_acc[0])
 
                 self.direction = normalized(position)
                 rel_direction = self.anchor0.rot().apply(self.direction, inverse=True)  # dir. relative to previous boom

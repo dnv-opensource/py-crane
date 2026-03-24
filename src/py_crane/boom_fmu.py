@@ -134,7 +134,7 @@ class BoomFMU(Boom):
             )
         else:
             Wire.__init__(
-                self, # type: ignore[arg-type]  ## call sequence ensures that it is called from Wire
+                self,  # type: ignore[arg-type]  ## call sequence ensures that it is called from Wire
                 model,
                 name,
                 mass=mass0,
