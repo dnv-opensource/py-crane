@@ -84,7 +84,11 @@ def oscillator_fmu():
 
 
 def _get_fmu(fmu_file: str) -> Path:
-    fmu = Path(__file__).parent.parent / "examples" / fmu_file
+    # First assume that the FMU is in the current working directory, which is expected to be the 'test_working_directory' folder.
+    # If not found there, look in the 'examples' folder.
+    fmu = Path.cwd() / fmu_file
+    if not fmu.exists():
+        fmu = Path(__file__).parent.parent / "examples" / fmu_file
     assert fmu.exists(), f"{fmu_file} file expected at {fmu}. Not found."
     return fmu
 

@@ -11,13 +11,14 @@ import pytest
 def mobile_crane_fmu():
     """Make the (updated) MobileCrane.fmu available for all tests."""
     from component_model.model import Model
-
+    src_folder: Path = Path(__file__).parent.parent / "src" / "py_crane"
+    src: Path = src_folder / "mobile_crane.py"
     build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
     build_path.mkdir(exist_ok=True)
     fmu_path = Model.build(  # MobileCrane.build(
-        str(Path(__file__).parent.parent / "src" / "py_crane" / "mobile_crane.py"),
-        project_files=[Path(__file__).parent.parent / "src" / "py_crane"],
-        dest=build_path,
+        script=str(src),
+        project_files=[src_folder],
+        dest=Path.cwd() / "MobileCrane.fmu",  # was: dest=build_path
     )
     return fmu_path
 
