@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path("../_ext").absolute()))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "py-crane"
-copyright = "2025, DNV AS. All rights reserved."
+copyright = "2026, DNV AS. All rights reserved."
 author = "Siegfried Eisinger, Jorge Luis Mendez"
 
 # The full version, including alpha/beta/rc tags
