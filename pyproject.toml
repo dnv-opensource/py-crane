@@ -30,7 +30,7 @@ allow-direct-references = true
 
 [project]
 name = "py-crane"
-version = "0.3.0"
+version = "0.3.1"
 description = "Basic crane simulation model including publication as FMU, for usage in the SEACo project."
 readme = "README.rst"
 requires-python = ">= 3.11"
