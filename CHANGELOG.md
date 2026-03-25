@@ -8,6 +8,8 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
+## [0.3.1] - 2026-03-26
+
 ### Changed
 * GitHub Workflows:
   * Added 'name: Checkout code' to uses of 'actions/checkout', for better readability and consistency across workflow files.
@@ -23,7 +25,11 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
   * Updated the syntax used for the OS and Python matrix in test workflows.
 * Sphinx Documentation:
   * Sphinx conf.py: Updated year in copyright statement to 2026
-
+* pyproject.toml:
+  * Added default directories to the 'exclude' list for pyright, in section [tool.pyright]
+    (Ref note in pyright [docs](https://github.com/microsoft/pylance-release/blob/main/docs/settings/python_analysis_exclude.md#default-behavior)).
+* tests/conftest.py, tests/test_crane_on_spring.py: Change destination folder for the call to Model.build(), so that MobileCrane.fmu gets built not in `/examples` but in `/tests/test_working_directory`.
+This avoids the need to commit an updated binary in the repository (/examples/MobileCrane.fmu), just because we ran tests.
 
 ### Dependencies
 * .pre-commit-config.yaml: Updated rev of ruff-pre-commit to v0.15.1
