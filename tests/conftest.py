@@ -11,6 +11,7 @@ import pytest
 def mobile_crane_fmu():
     """Make the (updated) MobileCrane.fmu available for all tests."""
     from component_model.model import Model
+
     src_folder: Path = Path(__file__).parent.parent / "src" / "py_crane"
     src: Path = src_folder / "mobile_crane.py"
     build_path = Path(__file__).parent.parent / "examples"  # together with other crane files
