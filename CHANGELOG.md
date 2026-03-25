@@ -21,6 +21,8 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
   * Replaced 'Build source distribution and wheel' with 'Build source distribution and wheels' (plural) in workflow step names.
   * Replaced 'Run twine check' with 'Check build artifacts' in workflow step names, to better reflect the purpose of the step.
   * Updated the syntax used for the OS and Python matrix in test workflows.
+* Sphinx Documentation:
+  * Sphinx conf.py: Updated year in copyright statement to 2026
 
 
 ## [0.3.0] - 2026-02-02
