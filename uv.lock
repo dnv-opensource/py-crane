@@ -1533,7 +1533,7 @@ wheels = [
 
 [[package]]
 name = "py-crane"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "component-model" },
