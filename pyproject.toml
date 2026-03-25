@@ -74,7 +74,7 @@ dependencies = [
 # dynamic = ["version"]
 
 [project.optional-dependencies]
-rest = ["docutils>=0.3"]
+rest = ["docutils>=0.22.4"]
 test = [
     "FMPy>=0.3.21",
     "matplotlib>=3.10",
