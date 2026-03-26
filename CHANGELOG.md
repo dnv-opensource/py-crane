@@ -8,6 +8,48 @@ The changelog format is based on [Keep a Changelog](https://keepachangelog.com/e
 * -/-
 
 
+## [0.3.1] - 2026-03-26
+
+### Changed
+* GitHub Workflows:
+  * Added 'name: Checkout code' to uses of 'actions/checkout', for better readability and consistency across workflow files.
+  * Added 'name: Download build artifacts' to uses of 'actions/download-artifact', for better readability and consistency across workflow files.
+  * Added 'name: Publish to PyPI' to uses of 'pypa/gh-action-pypi-publish', for better readability and consistency across workflow files.
+  * Added 'name: Upload build artifacts' to uses of 'actions/upload-artifact', for better readability and consistency across workflow files.
+  * Changed 'uv sync --upgrade' to 'uv sync -U'
+  * Ensured that actions 'upload-artifact' and 'download-artifact' uniformly specify 'dist' as (file)name for the artifact uploaded (or downloaded, respectively), for consistency across workflow files.
+  * pull_request_to_main.yml and nightly_build.yml: Added 'workflow_dispatch:' in selected workflows to allow manual trigger of the workflow.
+  * Removed redundant 'Set up Python' steps (no longer needed, as 'uv sync' will automatically install Python if not present).
+  * Replaced 'Build source distribution and wheel' with 'Build source distribution and wheels' (plural) in workflow step names.
+  * Replaced 'Run twine check' with 'Check build artifacts' in workflow step names, to better reflect the purpose of the step.
+  * Updated the syntax used for the OS and Python matrix in test workflows.
+* Sphinx Documentation:
+  * Sphinx conf.py: Updated year in copyright statement to 2026
+* pyproject.toml:
+  * Added default directories to the 'exclude' list for pyright, in section [tool.pyright]
+    (Ref note in pyright [docs](https://github.com/microsoft/pylance-release/blob/main/docs/settings/python_analysis_exclude.md#default-behavior)).
+* tests/conftest.py, tests/test_crane_on_spring.py: Change destination folder for the call to Model.build(), so that MobileCrane.fmu gets built not in `/examples` but in `/tests/test_working_directory`.
+This avoids the need to commit an updated binary in the repository (/examples/MobileCrane.fmu), just because we ran tests.
+
+### Dependencies
+* .pre-commit-config.yaml: Updated rev of ruff-pre-commit to v0.15.1
+* Updated to docutils>=0.22.4
+* Updated to furo>=2025.12
+* Updated to mypy>=1.19.1
+* Updated to myst-parser>=5.0
+* Updated to plotly>=6.5
+* Updated to pre-commit>=4.5
+* Updated to pyright>=1.1.408
+* Updated to pytest>=9.0
+* Updated to ruff>=0.15.1
+* Updated to scipy>=1.17.0
+* Updated to sourcery>=1.43.0
+* Updated to sphinx-argparse-cli>=1.20.1
+* Updated to sphinx-autodoc-typehints>=3.6
+* Updated to sphinx>=9.0
+* Updated to sphinxcontrib-mermaid>=2.0
+
+
 ## [0.3.0] - 2026-02-02
 
 ### Breaking Change: New package name

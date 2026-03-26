@@ -143,7 +143,7 @@ def test_fmu():
 # @pytest.mark.skip("Run the FMU")
 def test_run_mobilecrane_static(mobile_crane_fmu: Path, show: bool = False):
     """Load the FMU and run it using fmpy."""
-    print("Start simulation")
+    logger.info("Start simulation")
     result = simulate_fmu(  # static run
         str(mobile_crane_fmu),
         stop_time=0.1,

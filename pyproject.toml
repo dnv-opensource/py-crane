@@ -30,7 +30,7 @@ allow-direct-references = true
 
 [project]
 name = "py-crane"
-version = "0.3.0"
+version = "0.3.1"
 description = "Basic crane simulation model including publication as FMU, for usage in the SEACo project."
 readme = "README.rst"
 requires-python = ">= 3.11"
@@ -66,19 +66,19 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "component-model>=0.3.2",
+    "component-model>=0.4.0",
     "pythonfmu>=0.7.0",
     "numpy>=2.3",
-    "scipy>=1.16",
+    "scipy>=1.17.0",
 ]
 # dynamic = ["version"]
 
 [project.optional-dependencies]
-rest = ["docutils>=0.3"]
+rest = ["docutils>=0.22.4"]
 test = [
     "FMPy>=0.3.21",
     "matplotlib>=3.10",
-    "plotly>=6.3",
+    "plotly>=6.5",
     "libcosimpy >= 0.0.5",
 ]
 
@@ -92,19 +92,19 @@ Changelog = "https://github.com/dnv-opensource/py-crane/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4",
+    "pytest>=9.0",
     "pytest-cov>=7.0",
-    "ruff>=0.14.3",
-    "pyright>=1.1.407",
-    "mypy>=1.18",
-    "sourcery>=1.40",
-    "pre-commit>=4.3",
-    "Sphinx>=8.2",
-    "sphinx-argparse-cli>=1.20",
-    "sphinx-autodoc-typehints>=3.5",
-    "sphinxcontrib-mermaid>=1.0.0",
-    "myst-parser>=4.0",
-    "furo>=2025.9",
+    "ruff>=0.15.1",
+    "pyright>=1.1.408",
+    "mypy>=1.19.1",
+    "sourcery>=1.43.0",
+    "pre-commit>=4.5",
+    "Sphinx>=9.0",
+    "sphinx-argparse-cli>=1.20.1",
+    "sphinx-autodoc-typehints>=3.6",
+    "sphinxcontrib-mermaid>=2.0",
+    "myst-parser>=5.0",
+    "furo>=2025.12",
 ]
 
 [tool.uv]
@@ -145,6 +145,10 @@ include = [
     "examples",
 ]
 exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    ".venv",
     "tests/test_working_directory",
 ]
 

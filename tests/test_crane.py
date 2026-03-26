@@ -1,31 +1,34 @@
 import logging
 from math import cos, radians, sin, sqrt
-from typing import Any, Callable, Generator, Sequence, cast
+from typing import Any, Callable, Mapping, Sequence, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from component_model.analytic import sine_fit
-from component_model.utils.analysis import extremum_series
-from component_model.utils.controls import Controls
+from component_model.analytic import ForcedOscillator1D
+from component_model.utils.analysis import extremum_series, sine_fit
 from component_model.utils.transform import rot_from_spherical, rot_from_vectors
-from matplotlib.animation import FuncAnimation
 from scipy.spatial.transform import Rotation as Rot
 
-from py_crane.animation import AnimateCrane, AnimatePendulum
-from py_crane.boom import Boom
+from py_crane.animation import AnimatePendulum
+from py_crane.boom import Boom, Wire
 from py_crane.crane import Crane
 
 # from mpl_toolkits.mplot3d.art3d import Line3D
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger.setLevel(logging.INFO)
 np.set_printoptions(precision=4, suppress=True)
+
+
+def np_index(times: np.ndarray, t: float):
+    """Get the closest index with respect to a value in the array."""
+    return np.absolute(times - t).argmin()
 
 
 def do_show(
     times: np.ndarray | list[float],
-    traces: dict[str, list[float]] | dict[str, np.ndarray],  # [tuple[float,...],float]],
+    traces: Mapping[str, list[float] | np.ndarray],
     selection: dict[str, int] | None = None,
     title: str = "",
 ):
@@ -46,21 +49,22 @@ def do_show(
     plt.show()
 
 
-def set_wire_direction(r: Boom, angles: tuple[float, float], degrees: bool = False):
+def set_wire_direction(w: Wire, angles: tuple[float, float], degrees: bool = False):
     """Set the angles of a wire object. Makes only sense for preparation of test cases. Not allowed in Boom class."""
     _angles = np.array(angles, float)
+    assert isinstance(w, Wire)
     if degrees:
         _angles = np.radians(_angles)
-    r.boom[1:] = _angles
-    assert r.anchor0 is not None
-    r.rot(r.anchor0.rot() * rot_from_spherical(_angles))
-    r.direction = r.rot().apply(np.array((0, 0, 1), float))
-    r.r_v = np.array((0, 0, 0), float)  # reset also the speed
+    w.boom[1:] = _angles
+    assert w.anchor0 is not None
+    w.rot(w.anchor0.rot() * rot_from_spherical(_angles))
+    w.direction = w.rot().apply(np.array((0, 0, 1), float))
+    w.cm_v = np.zeros(3, float)  # reset also the speed
 
 
 def mass_center(xs: tuple[tuple[float, np.ndarray], ...]):
     """Calculate the total mass center of a number of point masses provided as 4-tuple"""
-    M, c = 0.0, np.array((0, 0, 0), float)
+    M, c = 0.0, np.zeros(3, float)
     for x, v in xs:
         M += x
         c += x * v
@@ -110,31 +114,34 @@ def crane(scope: str = "session", autouse: bool = True):
     return _crane()
 
 
-def _crane():
+def _crane(wire_length: float = 0.5):
     crane = Crane()
     _ = crane.add_boom(
-        name="pedestal",
+        "pedestal",
         description="The crane base, on one side fixed to the vessel and on the other side the first crane boom is fixed to it. The mass should include all additional items fixed to it, like the operator's cab",
         mass=2000.0,
         mass_center=(0.5, -1, 0.8),
         boom=(3.0, 0, 0),
     )
     _ = crane.add_boom(
-        name="boom1",
+        "boom1",
         description="The first boom. Can be lifted",
         mass=200.0,
         mass_center=0.5,
         boom=(10.0, radians(90), 0),
     )
-    _ = crane.add_boom(
-        name="wire",
+    w = crane.add_boom(
+        "wire",
         description="The wire fixed to the last boom. Flexible connection",
         mass=50.0,  # so far basically the hook
-        mass_rng=(50, 2000),
         mass_center=1.0,
-        boom=(0.5, radians(90), 0),
+        boom=(wire_length, radians(90), 0),
         q_factor=10.0,
+        additional_checks=True,
     )
+    assert np.allclose(w.origin, (10, 0, 3.0)), f"Origin {w.origin} != (10,0,3)"
+    assert np.allclose(w.end, (10, 0, 3.0 - wire_length)), f"Load position {w.end} != (10,0,{3.0 - wire_length})."
+
     return crane
 
 
@@ -147,6 +154,7 @@ def test_initial(crane: Crane):
     booms = [b.name for b in crane.booms()]
     assert booms == ["fixation", "pedestal", "boom1", "wire"]
     fixation, pedestal, boom1, wire = [b for b in crane.booms()]
+    assert isinstance(wire, Wire)
 
     assert crane.boom0.name == "fixation", "Boom0 should be fixation"
     assert np.allclose(crane.boom0.origin, (0.0, 0.0, -1e-10))  # fixation somewhat below surface@ {crane.boom0.origin}
@@ -236,68 +244,35 @@ def test_animate_pendulum(show: bool = False):
 
 
 # @pytest.mark.skip()
-def test_pendulum(crane: Crane, show: bool = False):
+def test_pendulum(show: bool = False):
     """Test crane with 1m wire and 50kg load at end as pendulum (in various configurations)."""
 
-    def sim_run(
-        t_end: float,
-        dt: float = 0.1,
-        min_z: float | None = None,
-        max_z: float | None = None,
-        max_speed: float | None = None,
-        show_select: dict[str, int] | None = None,
-        title: str = "test_pendulum",
-        crane_position: Callable[[float], float] | None = None,
-        crane_roll: Callable[[float], float] | None = None,
-        crane_pitch: Callable[[float], float] | None = None,
-        crane_yaw: Callable[[float], float] | None = None,
-        wire_l: Callable[[float], float] | None = None,
-    ):
-        misc: list[float] = []
-        x_pos: list[float] = []
-        z_pos: list[float] = []
-        speed: list[float] = []
-        time: list[float] = []
-        _dz0_dt = -1
-        z0 = r.end[2]
-        _time: float = 0.0
-        length = r.boom[0]
-        _boom = crane.boom_by_name("boom1")
-        assert _boom is not None, "boom1 needed at this stage"
-        while _time < t_end:
-            x0 = r.end[0]
-            z0 = r.end[2]
-            v = float(np.linalg.norm(r.r_v))
-            assert min_z is None or r.end[2] >= min_z, f"@{_time}. Min z {r.end[2]} < {min_z}"
-            assert max_z is None or r.end[2] <= max_z + 1e-6, f"@{_time}. Max z {r.end[2]} > {max_z}"
-            assert max_speed is None or v <= max_speed, f"@{_time}. Max speed {v} < {max_speed}"
-            time.append(_time)
-            x_pos.append(x0)
-            z_pos.append(z0)
-            speed.append(v)
-            misc.append(_boom.end[0])
-            _time += dt
-            if crane_position is not None:
-                crane.position = np.array((crane_position(_time), 0, 0), float)
-            if crane_roll is not None:
-                crane.rotate((crane_roll(_time), 0, 0), absolute=True)
-            if crane_pitch is not None:
-                crane.rotate((0, crane_pitch(_time), 0), absolute=True)
-            if crane_yaw is not None:
-                crane.rotate((0, 0, crane_yaw(_time)), absolute=True)
-            if wire_l is not None:
-                r.boom_setter((wire_l(_time), None, None))
-            crane.calc_statics_dynamics(dt)
-            assert abs(length - r.boom[0]) < 1e-4, f"Pendulum length {r.boom[0]} != {length}"
+    def _pendulum(q_factor: float = 20.0, length: float = 1.0, tau: float | None = None):
+        """Defines the special crane used here: a pedestal with a wire/load hanging down."""
+        crane = Crane()
+        _ = crane.add_boom(
+            "pedestal",
+            description="The crane base, just a pole for the pendulum, here.",
+            mass=2000.0,
+            mass_center=0.5,
+            boom=(length, 0, 0),
+        )
+        w = crane.add_boom(
+            "wire",
+            description="The wire fixed to the last boom. Flexible connection",
+            mass=100.0,  # load
+            mass_center=1.0,
+            boom=(length, radians(180), 0),  # 1m down, so that load at (0,0,0) in equilibrium
+            q_factor=q_factor,
+            additional_checks=False,  # True,
+        )
+        assert isinstance(w, Wire)
+        if tau is not None:
+            w.damping(damping_time=tau)
+        assert np.allclose(w.origin, (0, 0, length)), f"Origin {w.origin} != (0,0,{length})"
+        assert np.allclose(w.end, (0, 0, 0)), f"Load expected at (0,0,0). Found {w.end}"
 
-        z_max = [[0.0, z0]]
-        z_max.extend(extremum_series(time[10:], z_pos[10:], which="max"))
-
-        if show and show_select is not None:
-            do_show(
-                time, {"x_pos": x_pos, "z_pos": z_pos, "speed": speed, "misc": misc}, selection=show_select, title=title
-            )
-        return (time, x_pos, z_pos, speed, z_max, misc)
+        return crane, w
 
     def maximum(tbl: list[list[float]], col: int = 1):
         """Find maximum in 'col' of table and return row."""
@@ -307,159 +282,348 @@ def test_pendulum(crane: Crane, show: bool = False):
                 rmax = r
         return rmax
 
-    f, p, b1, r = [b for b in crane.booms()]
-    # start with a 1m pendulum through the origin along the x-axis
-    b1.boom_setter((2, np.pi, 0))  # boom down
-    r.pendulum_relax()
-    r.boom_setter((1.0, None, None))  # wire 1m long
-    assert np.allclose(r.origin, (0, 0, 1.0)), f"Origin {r.origin} != (0,0,1)"
-    assert np.allclose(r.end, (0, 0, 0)), f"Load expected at (0,0,0). Found {r.end}"
+    def check_fit(
+        e_y0: float | None,
+        e_a: float | None,
+        e_w: float | None,
+        e_phi: float | None,
+        pars: tuple[Any, ...],
+        eps: float = 1e-3,
+    ):
+        """Check the sine fit with respect to expected parameters."""
+        if len(pars) == 4:
+            _y0, _a, _w, _phi = pars
+        elif len(pars) == 5:
+            _y0, _a, _w, _phi, tm = pars
+        assert e_y0 is None or abs(_y0 - e_y0) < eps, f"Translation {_y0} != {e_y0}"
+        assert e_a is None or abs(_a - e_a) < eps, f"Amplitude {_a} != {e_a}"
+        assert e_w is None or abs(_w - e_w) < eps, f"Angular frequency {_w} != {e_w}"
+        assert e_phi is None or abs(_phi - e_phi) < 10 * eps, f"Phase {_phi} != {e_phi}"
 
-    a0 = np.radians(1.0)
-    set_wire_direction(r, (a0, 0))
-    assert np.allclose(r.end, (-np.sin(a0), 0, 1 - np.cos(a0))), (
-        f"Wire angle {np.degrees(a0)}, load: ({-np.sin(a0)},0,{1 - np.cos(a0)}). Found {r.end}"
-    )
-    _damping_time = r.damping(damping_time=1e100)  # no damping
-    if False:
-        show_crane(crane, True, False, title="start")
+    def check_sin(
+        _t: list[float], _p: list[float], _v: list[float], ampl: float, w: float, tau: float = 20, _len: float = 1.0
+    ):
+        """Check whether _t, _p, _v represents a forced oscillation with parameters ampl, w,tau."""
+        # wd = np.sqrt(9.81 / _len - 1 / 4 / tau**2)
+        osc = ForcedOscillator1D(k=9.81 / _len, c=1 / tau, a=ampl * 9.81 / _len, wf=w)
+        x, dx = osc.calc(np.array(_t))
+        if show:
+            do_show(_t, {"pos": _p, "expected": x, "diff": x - _p}, selection={"pos": 1, "expected": 1, "diff": 2})
+        assert np.allclose(x, _p, atol=1e-3, rtol=1e-4)
+        _dx = np.array(dx, float)  # np.array( [np.linalg.norm(_) for _ in dx])
+        if show:
+            do_show(
+                _t,
+                {"|speed|": _v, "expected": _dx, "diff": (_dx - _v)},
+                selection={"|speed|": 1, "expected": 1, "diff": 2},
+            )
+        assert np.allclose(_v, _dx, atol=1e-3, rtol=1e-3)
 
-    # Start the crane at maximum potential energy of load (1 deg) without damping
-    # we should have theta(t) = theta0* cos(w*t) with theta0= 0.0175 (1deg) and w= sqrt(g/L) = 3.132 => T = 2.006
-    set_wire_direction(r, (a0, 0))
-    assert np.allclose(r.end, (-np.sin(a0), 0, 1 - cos(a0)))
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=10,
-        dt=0.01,
-        min_z=0,
-        max_z=1 - np.cos(a0),
-        max_speed=np.sqrt(2 * 9.81 / (1 - np.cos(a0))),
-        show_select=None,
-        title=f"test_pendulum. {np.degrees(a0)}deg through origin",
-    )
-    a, w, phi = sine_fit(time, x_pos)
-    assert abs(a - np.sin(a0)) < 1e-5, f"Amplitude a:{a} != sin({a0}):{np.sin(a0)}"
-    assert abs(w - np.sqrt(9.81)) < 1e-4, f"Angular frequency w:{w} != sqrt(9.81):{np.sqrt(9.81)}"
-    assert abs(phi + np.pi / 2) < 1e-4, f"Phase phi:{phi} != -pi/2:{-np.pi / 2}"
+    def check_shock(
+        _t: list[float],
+        _p: list[float],
+        _v: list[float],
+        _p0: float,
+        tau: float = 20.0,
+        length: float = 1.0,
+        eps: float = 1e-4,
+    ):
+        """Check whether a short acceleration on crane movement results in the expected pendulum action."""
+        wd = np.sqrt(9.81 / length - 1 / 4 / tau**2)
+        phi0 = np.arcsin(_p0 / length)
+        #        assert np.isclose(_p[10], 0.0, atol=1e-3), f"Position after shock {_p[10]} should be still at origo."
+        assert np.isclose(np.average(_p), _p0, atol=1e-4), f"Average position {np.average(_p)} != {_p0}"
+        expected = [_p0 * (1.0 - np.exp(-(t - 0.01) / 2 / tau) * cos(wd * (t - 0.01))) for t in _t]
+        maxdiff = max(np.absolute(np.array(expected[4:]) - np.array(_p[4:])))
+        assert maxdiff < eps, f"Max difference between position and expected: {maxdiff}"
+        beta = np.arctan2(1 / 2 / tau, wd)
+        expected = [
+            phi0 * np.exp(-t / 2 / tau) * np.sqrt(9.81 / length) * np.sqrt(np.sin(wd * t - beta) ** 2) for t in _t
+        ]
+        avgdiff = np.average(np.absolute(np.array(expected) - np.array(_v)))
+        assert avgdiff < 10 * eps, f"High average _v difference to expected: {avgdiff}"
+        # do_show(_t, {'|speed|':_v, 'expected':expected})
 
-    for t, z in zip(time, z_pos, strict=False):
-        theta = a0 * np.cos(np.sqrt(9.81) * t)
-        assert abs(z - 1 + np.cos(theta)) < 1e-5, f"@{t}: z={z}. Expected {1.0 - np.cos(theta)}"
-    #        print(f"@{t}, theta:{theta}, z:{z}, {1 - np.cos(theta)}")
-    last = -np.pi / np.sqrt(9.81)
-    for t, _ in z_max:  # Note. the pendulum has 2 max points per period!
-        assert abs(t - last - np.pi / np.sqrt(9.81)) < 0.01, f"Period {t}-{last} != {np.pi / np.sqrt(9.81)}"
-        last = t
+    def sim_run(
+        crane_spec: tuple[Crane, Wire],
+        te: float,
+        dt: float = 0.1,
+        speed_x: bool = False,
+        min_z: float | None = None,
+        max_z: float | None = None,
+        max_speed: float | None = None,
+        show_select: dict[str, int] | None = None,
+        idx: int = 1,
+        title: str = "test_pendulum",
+        crane_pos: Callable[[float], float] | None = None,
+        crane_roll: Callable[[float], float] | None = None,
+        crane_pitch: Callable[[float], float] | None = None,
+        crane_yaw: Callable[[float], float] | None = None,
+        wire_l: Callable[[float], float] | None = None,
+        _ext: Callable[[float], float] | None = None,
+    ):
+        """Perform the simulation as specified. Results analysis is done in calling function."""
+        crane, w = crane_spec
+        misc: list[float] = []
+        x_pos: list[float] = []
+        y_pos: list[float] = []
+        z_pos: list[float] = []
+        speed: list[float] = []
+        time = np.arange(0, te, dt)
+        ext = time if _ext is None else [_ext(t) for t in time]
+        _dz0_dt = -1
+        length = w.boom[0]
+        for _time in time:
+            if crane_pos is not None:
+                crane.position = np.array((crane_pos(_time), 0, 0), float)
+            if crane_roll is not None:
+                crane.rotate((crane_roll(_time), 0, 0), absolute=True)
+            if crane_pitch is not None:
+                crane.rotate((0, crane_pitch(_time), 0), absolute=True)
+            if crane_yaw is not None:
+                crane.rotate((0, 0, crane_yaw(_time)), absolute=True)
+            if wire_l is not None:
+                w.boom_setter((wire_l(_time), None, None))
+            else:
+                assert abs(length - w.boom[0]) < 1e-4, f"Pendulum length {w.boom[0]} != {length}"
+            crane.do_step(_time, dt)
 
-    # same test with q_factor
-    a0 = np.radians(5.0)
-    set_wire_direction(r, (a0, 0))
-    assert np.allclose(r.end, (-np.sin(a0), 0, 1 - cos(a0)))
-    _damping_time = r.damping(q_factor=100)
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=100,
-        dt=0.01,
-        min_z=0,
-        max_z=1 - np.cos(a0),
-        max_speed=np.sqrt(2 * 9.81 / (1 - np.cos(a0))),
-        show_select=None,
-        title="test_pendulum. 1deg through origin",
-    )
-    time = np.array(time, float)
-    env = a0 * np.exp(-time / 2.0 / _damping_time)
-    x_pos = np.array(x_pos, float)
-    z_pos = np.array(z_pos, float)
-    speed = np.array(speed, float)
-    energy = 9.81 * z_pos + 0.5 * speed**2
-    e_decay = energy[0] * np.exp(-time / _damping_time)
-    if False:  # show:
-        do_show(
-            time,
-            traces={"x": x_pos, "env+": env, "env-": -env, "energy": energy, "e_decay": e_decay, "z": z_pos},
-            selection={"x": 1, "env+": 1, "env-": 1, "energy": 2, "e_decay": 2},
-            title=f"Pendulum x0={a0}, tau={_damping_time}",
+            x0 = w.end[0]
+            y0 = w.end[1]
+            z0 = w.end[2]
+            if speed_x:
+                v = w.cm_v[0]
+            else:
+                v = float(np.linalg.norm(w.cm_v))
+            assert min_z is None or w.end[2] >= min_z, f"@{_time}. Min z {w.end[2]} < {min_z}"
+            assert max_z is None or w.end[2] <= max_z + 1e-6, f"@{_time}. Max z {w.end[2]} > {max_z}"
+            assert max_speed is None or v <= max_speed, f"@{_time}. Max speed {v} < {max_speed}"
+            x_pos.append(x0)
+            y_pos.append(y0)
+            z_pos.append(z0)
+            speed.append(v)
+            misc.append(w.origin[0])
+        z_max = [[0.0, z0]]
+        z_max.extend(extremum_series(time[10:], z_pos[10:], which="max"))
+
+        if show and show_select is not None:
+            title = f"{idx}. {title}"
+            do_show(
+                time,
+                {"x_pos": x_pos, "y_pos": y_pos, "z_pos": z_pos, "speed": speed, "misc": misc, "ext": ext},
+                selection=show_select,
+                title=title,
+            )
+        return (time, x_pos, y_pos, z_pos, speed, z_max, misc)
+
+    def _move_crane(
+        v0: float = 0.0,
+        te: float = 100,
+        dt: float | None = None,
+        tau: float = 5,
+        c_pos: Callable[[float], float] | None = None,
+        show: bool = False,
+        idx: int = 1,
+    ):
+        crane, w = _pendulum()
+        gamma = 1.0 / 2.0 / w.damping(damping_time=tau)  # damping
+        wd = np.sqrt(9.81 / w.length - gamma**2)
+        T = 2 * np.pi / wd
+        _dt = dt if dt is not None else (T / 100 if idx in (0, 4, 5, 6) else 0.01)
+        w.pendulum_relax()
+        w.cm_v = np.array((v0, 0, 0), float)
+        # ??w.origin_v[0] = (c_pos(_dt)-c_pos(-_dt))/2/_dt
+        if c_pos is not None:
+            w.origin_acc[0] = (c_pos(_dt) - 2 * c_pos(0.0) + c_pos(-_dt)) / _dt / _dt
+        if idx in (4, 5, 6):
+            osc = ForcedOscillator1D(k=9.81, c=gamma, a=0.001, wf=wd)
+        else:
+            osc = None
+        time, x_pos, y_pos, z_pos, speed, z_max, misc = sim_run(
+            crane_spec=(crane, w),
+            te=te,
+            dt=_dt,
+            speed_x=True,
+            min_z=1.0 - float(w.length),
+            show_select={
+                "x_pos": 1,
+                "misc": 1,
+                "speed": 1,
+                "z_pos": 2,
+            },
+            title=f"test_pendulum_move[{idx}]. Movements in x-direction",
+            crane_pos=c_pos,  # movement function
+            _ext=lambda t: (
+                abs((v0 if v0 > 0 else 1.0) * np.exp(-gamma * t) * np.cos(wd * t))
+                if osc is None
+                else float(osc.calc(t)[0])
+            ),
         )
-    assert np.allclose(energy, e_decay, atol=1e-3), f"Energy should decay with decay time {_damping_time}"
+        if idx == 0:  # v0=0.1, tau=20 - damped oscillation. Small amplitude, so that linear approximation holds!
+            for t, v in zip(time, speed, strict=True):
+                expected = v0 * np.exp(-t / tau) * np.cos(wd * t)
+                assert abs(v - expected) < 3e-2, f"Damped oscillation speed @{t}: {v}!={expected}"
+        elif idx == 1:  # v0=0. Crane moves with speed 0.1/s
+            assert abs(np.average(speed)) < 1e-3, f"Average !local! speed_x {np.average(speed)} != 0.0"
+            assert abs(x_pos[-1] - 0.1 * te) < 1e-2, f"End position {0.1 * te}!={x_pos[-1]}"
+        elif idx == 2:  # origin moves with v=0.1, while load starts with same speed (+initial acc. causes oscillations)
+            assert abs(np.average(speed)) < 1e-3, f"Speed oscillations around: {np.average(speed)}"
+            assert abs(x_pos[-1] - v0 * te) < 1e-2, f"End position: {x_pos[-1]}!={v0 * te}"
+        elif idx == 3:  # v0=0. Shock in x-direction with a=20
+            check_shock(list(time), x_pos, speed, _p0=20 * 0.01**2, tau=20, eps=1e-3)
+        elif idx == 4:  # low frequency sine
+            check_sin(list(time), x_pos, speed, 0.001, 0.1 * wd, tau=20)
+        elif idx == 5:  # resonant oscillation
+            check_sin(list(time), x_pos, speed, 0.00005, wd, tau=20)
+        elif idx == 6:  # high frequency sine
+            check_sin(list(time), x_pos, speed, 0.00005, 10 * wd, tau=20)
+        elif idx == 7:
+            # Qualitative (visual) comparison with forced oscillator is very good, but oscillator is not harmonic
+            # and sweep in low frequency area too fast, so that numerical comparison is difficult.
+            i_low = np_index(time, 40)
+            i_res = np_index(time, 167.5)
+            i_high = np_index(time, 450)
+            check_fit(0.0, 0.0, 0.66, 1.92, sine_fit(time[:i_low], x_pos[:i_low]), eps=1e-2)
+            check_fit(None, 0.022, 3.17, 0.7, sine_fit(time[:i_res], x_pos[:i_res]), eps=1e-2)
+            check_fit(None, 3.7e-5, 9.05, -2.15, sine_fit(time[:i_high], x_pos[:i_high]), eps=1e-2)
+        elif idx == 8:
+            print(np.degrees(np.arctan2(z_pos[-1], misc[-1] - x_pos[-1])), np.degrees(np.arcsin(2 / 9.81)) / 2)
 
-    # Move the whole crane according to a sin function in x-direction, causing forced pendulum actions
-    _damping_time = r.damping(damping_time=5)  # damping
-    set_wire_direction(r, (0, 0))
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=500,
-        dt=0.01,
-        min_z=0,
-        show_select={
-            "x_pos": 1,
-            "z_pos": 2,
-            "misc": 1,
-        },  #'speed':2},
-        title="test_pendulum. Forced acceleration sweeping angular frequency (0.01+0.01*t)",
-        crane_position=lambda t: 0.001 * np.sin((0.01 + 0.01 * t) * t),  # angular frequency sweep
-    )
-    # Qualitative (visual) comparison with forced oscillator is very good, but oscillator is not harmonic
-    # and sweep in low frequency area too fast, so that numerical comparison is difficult.
-    a, w, phi = sine_fit(time[4100:4900], x_pos[4100:4900])  # t=41..49
-    assert abs(a - 0.0101) < 1e-4 and abs(w - 0.9054) < 1e-4 and abs(phi - 0.2861) < 1e-4, (
-        f"Low freq. a:{a}, w:{w}, phi:{phi}"
-    )
-    a, w, phi = sine_fit(time[19988:20201], x_pos[19988:20201])  # t=199.88...202.01,
-    assert abs(a - 0.7555) < 1e-4 and abs(w - 3.0134) < 1e-4 and abs(phi - 0.7548) < 1e-4, (
-        f"Resonance. a:{a}, w:{w}, phi:{phi}"
-    )
-    a, w, phi = sine_fit(time[39990:40080], x_pos[39990:40080])  # t=399.9...400.8
-    assert abs(a - 0.01484) < 1e-4 and abs(w - 8.0171) < 1e-4 and abs(phi + 2.1028) < 1e-4, (
-        f"High freq. a:{a}, w:{w}, phi:{phi}"
-    )
+    def _turn_crane(
+        te: float = 100,
+        tau: float = 20,
+        _rpy: str = "r",
+        rpy: Callable[[float], float] | None = None,
+        show: bool = False,
+        idx: int = 1,
+    ):
+        crane, w = _pendulum()
+        gamma = 1.0 / 2.0 / w.damping(damping_time=tau)  # damping
+        wd = np.sqrt(9.81 / w.length - gamma**2)
+        T = 2 * np.pi / wd
+        w.pendulum_relax()
+        if _rpy == "r":
+            crane_roll, crane_pitch, crane_yaw = rpy, None, None
+        elif _rpy == "p":
+            crane_roll, crane_pitch, crane_yaw = None, rpy, None
+        elif _rpy == "y":
+            crane_roll, crane_pitch, crane_yaw = None, None, rpy
+        time, x_pos, y_pos, z_pos, speed, z_max, misc = sim_run(
+            crane_spec=(crane, w),
+            te=te,
+            dt=T / 100,
+            min_z=float(-w.length),
+            show_select={
+                "x_pos": 1,
+                "z_pos": 1,
+                "y_pos": 2,
+                "speed": 1,
+                "misc": 2,
+            },
+            crane_roll=crane_roll,
+            crane_pitch=crane_pitch,
+            crane_yaw=crane_yaw,
+            _ext=rpy,
+            title=f"test_pendulum_turn[{idx}, {_rpy}].",
+        )
+        if idx == 1:  # yaw. Torsion is not included. Nothing happens
+            assert all(abs(v) < 1e-8 for v in speed), "Speed should be zero"
+            assert all(abs(x) < 1e-8 for x in x_pos), "x-position should be zero"
+        if idx == 2:  # accelerated roll, then stop (shock)
+            check_shock(list(time), y_pos, speed, _p0=-20 * 0.01**2, tau=20, eps=1e-3)
+        if idx == 3:  # accelerated pitch, then stop (shock)
+            check_shock(list(time), x_pos, speed, _p0=-20 * 0.01**2, tau=20, eps=1e-3)
 
-    # Start with circular motion of load and shorten wire over time
-    _damping_time = r.damping(damping_time=10000)  # damping
-    set_wire_direction(r, (-90, 0), degrees=True)
-    r.r_v = np.array((0.0, 10.0, 0.0), float)
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=10,
-        dt=0.001,
-        min_z=0,
-        show_select={"x_pos": 1, "z_pos": 2},
-        title="test_pendulum. Start with rotating load and shorten wire length (0.01+0.01*t)",
-        wire_l=lambda t: 1.0 - 0.002 * t,
-    )
-    # Qualitative (visual) comparison with forced oscillator is very good, but oscillator is not harmonic
-    # and sweep in low frequency area too fast, so that numerical comparison is difficult.
-    # a, w, phi = sine_fit(time[4100:4900], x_pos[4100:4900]) #t=41..49
+    def _circular(
+        tau: float = 1000,
+        v0: float = 10.0,
+        wire_l: Callable[[float], float] | None = None,
+        angle: float = 0,
+        show: bool = False,
+        idx: int = 1,
+    ):
+        """Start with circular motion of load and shorten wire according to wire_l function."""
+        crane, w = _pendulum(tau=tau)
+        set_wire_direction(w, (90 + angle, 0), degrees=True)
+        w.cm_v = np.array((0.0, v0, 0.0), float)
+        time, x_pos, y_pos, z_pos, speed, z_max, misc = sim_run(
+            crane_spec=(crane, w),
+            te=10,
+            dt=0.001,
+            min_z=0,
+            show_select={"x_pos": 1, "y_pos": 1, "z_pos": 2},
+            title="test_pendulum. Rotating load and shortened wire length",
+            wire_l=wire_l,
+        )
+        if idx == 0:  # No change in wire length and angle such that conic curve emerges (stable)
+            assert abs(angle - 54.75550939085597) < 1e-10, f"Stability angle {angle} != 54.756"
+            c_angle = np.cos(np.radians(angle))
+            _x = c_angle
+            _z = np.sqrt(1 - _x**2)
+            assert all(abs(z - 1 + _z) < 1e-5 for z in z_pos), f"Height != {1 - _z}: {z_pos[:10]}"
+            i25 = np_index(time, 2.5)
+            check_fit(0.0, _x, 2 / c_angle, np.pi / 2, sine_fit(time[:i25], x_pos[:i25]), eps=1e-2)
+            # _y0, _a, _w, _phi, _tm = sine_fit(time[: np_index(time, 2.5)], y_pos[: np_index(time, 2.5)])
+            # assert abs(_phi) < 1e-6, f"y-Phase {_phi} != {np.pi / 2}"
+        elif idx == 1:  # No change of wire length. Note: curves are not completely circular => accuracy reduced.
+            c_angle = np.sqrt(np.sqrt(_b2 + _b2**2 / 4) - _b2 / 2)  # stability angle
+            _y0, _a, _w, _phi, _tm = sine_fit(time[: np_index(time, 1.5)], z_pos[: np_index(time, 1.5)])
+            assert abs(1.0 - 2**2 / 9.81 - _y0) < 5e-2, "Zentripetal in balance with gravitation. y0={_y0}."
+            assert 1.0 - _y0 - _a < 2e-2, f"Energy and angular momentum conservation: y0={_y0}, a={_a}"
+        elif idx == 2:  # wire shortened with 0.05*t => l0=1...lend=0.5. Should have wd1 = l0**2 / l1**2* wd0
+            i03 = np_index(time, 0.3)
+            check_fit(0.0, 1.0, 50.9, None, sine_fit(time[:i03], x_pos[:i03], eps=0.1), eps=0.16)
+            _y0, _a, _w, _phi, _tm = sine_fit(time, x_pos, eps=0.1)
+            check_fit(0.0, 0.5, None, None, (_y0, _a, _w, _phi), eps=0.1)
+            assert abs(_w - 200) / 200 < 3e-2, f"Angular velocity {_w} != 200"
+        elif idx == 3:  # pendulum hanging down with just enough kinetic energy to rotate through top point once
+            assert (np.max(y_pos) - 1.0) < 1e-5, "Max y: {np.max{y_pos}"
+            assert (np.min(y_pos) + 1.0) < 1e-5, "Min y: {np.min{y_pos}"
+            assert (np.max(z_pos) - 2.0) < 1e-5, "Max z: {np.max{z_pos}"
 
-    # Forced roll movement frequency sweep with damping
-    set_wire_direction(r, (0, 0))
-    r.damping(damping_time=100)  # damping
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=100,
-        dt=0.01,
-        # min_z=0,
-        # max_z=1-np.cos(np.radians(1)),
-        # max_speed=np.sqrt(2*9.81/(1-np.cos(np.radians(1)))),
-        show_select={"x_pos": 1, "z_pos": 2},
-        title="test_pendulum. Forced rolling motion",
-        crane_roll=lambda t: 0.01 * np.sin((0.1 + t / 20) * t),
-    )
-    # assert max(z[1] for z in z_max) > 0.028, f"Overall max: {max(z[1] for z in z_max)}"
-    # assert max(z[1] for z in z_max[:5]) < 1e-4, f"Low frequency max: {max(z[1] for z in z_max[:5])}"
-    # assert max(z[1] for z in z_max[-5:]) < 1e-3, f"High frequency max: {max(z[1] for z in z_max[-5:])}"
+    # def _special(pos: np.ndarray, speed: np.ndarray, tau: float, te: float = 1.0, idx: int = 1):
+    #     """Test special situations which have caused problems. Use the loa position vector and the speed as initial."""
+    #     sp = cartesian_to_spherical(pos, deg=True)
+    #     R = float(np.linalg.norm(pos))
+    #     crane, w = _pendulum(length=R, tau=tau)
+    #     set_wire_direction(w, (sp[1], sp[2]), degrees=True)
+    #     w.cm_v = speed
+    #     time, x_pos, y_pos, z_pos, speed, z_max, misc = sim_run(
+    #         crane_spec=(crane, w),
+    #         te=te,
+    #         dt=0.01,
+    #         min_z=0,
+    #         show_select={"x_pos": 1, "y_pos": 1, "z_pos": 1, "speed": 2},
+    #         title="test_pendulum. Special({idx})",
+    #     )
+    #    _special( np.array((1, -1, -1)), np.array((1, 1, 1)), tau=8000, te = 1.0, idx=1)
+    # _special( np.array((1, -1, -1)), np.array((1, 0, 1)), tau=8000, te = 1.0, idx=1)
 
-    # Forced yaw movement, which does not have effect on load (inertia not modelled)
-    set_wire_direction(r, (0, 0))
-    crane.rot((0, 0, 0))  # reset crane
-    r.pendulum_relax()
-    r.damping(damping_time=100)  # damping
-    time, x_pos, z_pos, speed, z_max, misc = sim_run(
-        t_end=10,
-        dt=0.01,
-        # min_z=0,
-        # max_z=1-np.cos(np.radians(1)),
-        # max_speed=np.sqrt(2*9.81/(1-np.cos(np.radians(1)))),
-        show_select={"x_pos": 1, "z_pos": 2},
-        title="test_pendulum. Forced yaw motion",
-        crane_yaw=lambda t: 0.01 * np.sin((0.1 + t / 20) * t),
-    )
-    assert max(z[1] for z in z_max) < 1e-9, f"Overall max: {max(z[1] for z in z_max)}"
+    tau = 20.0
+    gamma = 1.0 / 2.0 / tau
+    wd = np.sqrt(9.81 / 1.0 - gamma**2)
+
+    ##?? Deactivated tests to be checked and updated
+    _b2 = (2**2 / 9.81) ** 2
+    stable = np.degrees(np.arccos(np.sqrt(np.sqrt(_b2 + _b2**2 / 4) - _b2 / 2)))
+    _move_crane(te=50, v0=0.1, c_pos=None, tau=20, show=True, idx=0)
+    _move_crane(v0=0.0, c_pos=lambda t: 0.1 * t, tau=10, te=20.0, show=True, idx=1)
+    _move_crane(v0=0.1, c_pos=lambda t: 0.1 * t, tau=1000, te=10, show=True, idx=2)
+    _move_crane(v0=0.0, c_pos=lambda t: 20 * t**2 if t < 0.01 else 0.002, tau=20, te=10, dt=0.01, show=True, idx=3)
+    _move_crane(c_pos=lambda t: 0.001 * np.sin(0.1 * wd * t), tau=tau, te=200, dt=0.01, show=True, idx=4)
+    _move_crane(c_pos=lambda t: -0.00005 * np.sin(wd * t), tau=tau, te=200, show=True, idx=5)
+
+    # _move_crane(c_pos=lambda t: 0.00005 * np.sin(10 * wd * t), tau=tau, te=10, dt=0.0001, show=True, idx=6)
+    # _move_crane(v0=0.0, c_pos=lambda t: 0.001 * np.sin((0.01 + 0.01 * t) * t), tau=20, te=500, show=True, idx=7)
+    # _move_crane(v0=0.0, c_pos=lambda t: 1 * t**2, tau=20, te=100, dt=0.01, show=True, idx=8)
+    # _turn_crane(_rpy="y", rpy=lambda t: 0.01 * t**2 if t <= 5 else 0.25, tau=20, show=True, idx=1)
+    # _turn_crane(_rpy="r", rpy=lambda t: 20 * t**2 if t < 0.01 else 0.002, tau=20, te=50, show=True, idx=2)
+    # _turn_crane(_rpy="p", rpy=lambda t: 20 * t**2 if t < 0.01 else 0.002, tau=20, te=50, show=True, idx=3)
+    _circular(tau=1e10, v0=2.0, wire_l=None, angle=stable, show=show, idx=0)
+    _circular(tau=1e10, v0=2.0, wire_l=None, show=show, idx=1)
+    # _circular(tau=1e10, v0=50.0, wire_l=lambda t: 1.0 - 0.05 * t, show=show, idx=2)
+    _circular(tau=1e10, v0=50.0, wire_l=None, angle=-90, show=show, idx=3)
+    _circular(tau=20, v0=2.1 * np.sqrt(9.81 * 1.0), wire_l=None, angle=90, show=show, idx=3)
 
 
 # @pytest.mark.skip()
@@ -476,33 +640,34 @@ def test_sequence(crane: Crane, show: bool = False):
             print(f"Rotate (0,0,1): {rot2.apply(np.array((0, 0, 1)))} =? {r.apply(np.array((0, 0, 1)))}")
             raise AssertionError("Rotation object error") from None
 
-    f, p, b1, r = [b for b in crane.booms()]
+    f, p, b1, w = [b for b in crane.booms()]
+    assert isinstance(w, Wire)
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Initial state. Crane folded")
-    assert np.allclose(r.origin + r.length * r.direction, (10, 0, 2.5))
-    assert np.allclose(r.end, (10, 0, 2.5))
+    assert np.allclose(w.origin + w.length * w.direction, (10, 0, 2.5))
+    assert np.allclose(w.end, (10, 0, 2.5))
 
     logger.info("boom1 up (vertical)")
     b1.boom_setter((None, 0, None))
     crane.calc_statics_dynamics()
-    assert np.allclose(r.end, (0 + 0.5 / sqrt(2), 0, 3 + 10 - 0.5 / sqrt(2)), atol=0.1)  # somewhat lower due to length
-    pendulum_relax(r, show=False)
-    assert np.allclose(r.end, (0, 0, 3 + 10 - 0.5), atol=0.05), f"Found equilibrium position {r.end}"
+    assert np.allclose(w.end, (0 + 0.5 / sqrt(2), 0, 3 + 10 - 0.5 / sqrt(2)), atol=0.1)  # somewhat lower due to length
+    pendulum_relax(w, show=False)
+    assert np.allclose(w.end, (0, 0, 3 + 10 - 0.5), atol=0.05), f"Found equilibrium position {w.end}"
 
     logger.info("boom1 45 deg up")
     b1.boom_setter((None, radians(45), None))
-    r.pendulum_relax()  # includes calc_statics_dynamics()
-    assert np.allclose(r.end, [10 / sqrt(2), 0, 3 - 0.5 + 10 / sqrt(2)])
+    w.pendulum_relax()  # includes calc_statics_dynamics()
+    assert np.allclose(w.end, [10 / sqrt(2), 0, 3 - 0.5 + 10 / sqrt(2)])
     check_rot(b1._rot, (1.0 / sqrt(2), 0.0, 1.0 / sqrt(2)))
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). boom 1 at 45 degrees.")
 
     logger.info("wire 0.5m -> 5m")
-    r.boom_setter((5.0, None, None))
+    w.boom_setter((5.0, None, None))
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Wire 0.5m -> 5m")
-    r.pendulum_relax()  # includes calc_statics_dynamics()
-    assert np.allclose(r.end, [10 / sqrt(2), 0, 3 + 10 / (sqrt(2)) - 5]), f"Found load position {r.end}"
+    w.pendulum_relax()  # includes calc_statics_dynamics()
+    assert np.allclose(w.end, [10 / sqrt(2), 0, 3 + 10 / (sqrt(2)) - 5]), f"Found load position {w.end}"
 
     logger.info("turn base 360 deg in steps of 5 deg")
     for i in range(73):  # turn in steps of 5 deg
@@ -513,7 +678,7 @@ def test_sequence(crane: Crane, show: bool = False):
         check_rot(b1._rot, (1.0 / sqrt(2) * cos(radians(i * 5)), 1.0 / sqrt(2) * sin(radians(i * 5)), 1.0 / sqrt(2)))
 
     check_rot(b1._rot, (1.0 / sqrt(2), 0.0, 1.0 / sqrt(2)))  # back to starting point
-    r.pendulum_relax()  # includes calc_statics_dynamics()
+    w.pendulum_relax()  # includes calc_statics_dynamics()
     if show:
         show_crane(crane, markCOM=True, markSubCOM=True, title="test_sequence(). Turned base 360 degrees")
 
@@ -531,42 +696,44 @@ def test_sequence(crane: Crane, show: bool = False):
     crane.rot((0, 0, 0))
     check_rot(b1._rot, (1.0 / sqrt(2), 0.0, 1.0 / sqrt(2)))  # back to starting point
 
-    len_0 = r.length
+    len_0 = w.length
     # boom1 up. Dynamic
     for i in range(450):
         angle = 45 - i / 100
         b1.boom_setter((None, angle, None))
         crane.calc_statics_dynamics(1.0)
-        # print(f"angle {angle}, rope length: {r.length}, rope origin: {r.origin}. rope velocity: {r.velocity}")
-    assert len_0 == r.length, "Length of rope has changed!"
+        # print(f"angle {angle}, rope length: {w.length}, rope origin: {w.origin}. rope velocity: {w.velocity}")
+    assert len_0 == w.length, "Length of rope has changed!"
 
 
 # @pytest.mark.skip()
 def test_change_length(crane: Crane, show: bool = False):
-    f, p, b1, r = [b for b in crane.booms()]
+    f, p, b1, w = [b for b in crane.booms()]
+    assert isinstance(w, Wire)
     if show:
         show_crane(crane, title="test_change_length(). Initial")
-    assert r.anchor1 is None
-    assert np.allclose(b1.end, r.origin)
-    r.boom_setter((3, None, None))  # increase length
-    r.pendulum_relax()
-    assert np.allclose(r.end, (10.0, 0, 0), atol=0.001)
+    assert w.anchor1 is None
+    assert np.allclose(b1.end, w.origin)
+    w.boom_setter((3, None, None))  # increase length
+    w.pendulum_relax()
+    assert np.allclose(w.end, (10.0, 0, 0), atol=0.001)
     if show:
         show_crane(crane, title="test_change_length(). rope -> 3m")
 
 
 # @pytest.mark.skip()
 def test_rotation(crane: Crane, show: bool = False):
-    f, p, b1, r = [b for b in crane.booms()]
+    f, p, b1, w = [b for b in crane.booms()]
+    assert isinstance(w, Wire)
     b1.boom_setter((None, 0, None))  # b1 up
     crane.calc_statics_dynamics()  # ensure that wire is adjusted
     assert np.allclose(b1.direction, (0, 0, 1))
     assert b1.length == 10
     assert np.allclose(b1.c_m, (0, 0, 5))  # measured relative to its origin!
-    assert np.allclose(r.origin, (0, 0, 3 + 10)), f"r.origin {r.origin}, != (0,0,13)"
-    assert abs(r.length - 0.5) < 1e-10, f"Unexpected length {r.length}"
+    assert np.allclose(w.origin, (0, 0, 3 + 10)), f"w.origin {w.origin}, != (0,0,13)"
+    assert abs(w.length - 0.5) < 1e-10, f"Unexpected length {w.length}"
     b1.boom_setter((None, radians(90), None))  # b1 east (as initially)
-    r.pendulum_relax()
+    w.pendulum_relax()
     assert np.allclose(b1.direction, (1, 0, 0))
     assert b1.length == 10
     assert np.allclose(b1.c_m, (5, 0, 0))
@@ -579,7 +746,7 @@ def test_rotation(crane: Crane, show: bool = False):
     p.boom_setter((None, None, radians(-90)))  # turn p so that b1 south
     assert np.allclose(b1.direction, (0, -1, 0))
     assert np.allclose(b1.c_m, (0, -5, 0))
-    r.pendulum_relax()
+    w.pendulum_relax()
     crane.calc_statics_dynamics()
     if show:
         show_crane(crane, markCOM=True, markSubCOM=False, title="test_rotation(). Before rotation. b1 east.")
@@ -592,8 +759,9 @@ def test_rotation(crane: Crane, show: bool = False):
 # @pytest.mark.skip()
 def test_c_m(crane: Crane, show: bool = False):
     # Note: Boom.c_m is a local measure, calculated from Boom.origin
-    f, p, b1, r = [b for b in crane.booms()]
-    r.mass -= 50
+    f, p, b1, w = [b for b in crane.booms()]
+    assert isinstance(w, Wire)
+    w.mass -= 50
     if show:
         show_crane(crane, markCOM=True, markSubCOM=False, title="test_c_m(). Initial")
     # initial c_m location
@@ -605,7 +773,7 @@ def test_c_m(crane: Crane, show: bool = False):
     assert np.allclose(b1.c_m, (0, 0, 5))
     # update all subsystem center of mass points. Need to do that from last boom!
     crane.calc_statics_dynamics()
-    r.pendulum_relax()
+    w.pendulum_relax()
     if show:
         show_crane(crane, markCOM=True, markSubCOM=False, title="test_c_m(). All booms along a line in z-direction")
     assert np.allclose(b1.c_m_sub[1], (0, 0, 3 + 5)), f"b1 CoM: {b1.c_m_sub[1]}"
@@ -613,113 +781,6 @@ def test_c_m(crane: Crane, show: bool = False):
     assert p.c_m_sub[0] == 2200
     b1.boom_setter((None, radians(45), None))
     p.boom_setter((None, None, radians(-20)))
-
-
-def animate_sequence(crane: Crane, seq: tuple[tuple[Boom, float], ...] = (), nSteps: int = 10):
-    """Generate animation frames for a sequence of rotations. To be used as 'update' argument in FuncAnimation.
-    A sequence element consists of a boom and an angle, which then is rotated in nSteps.
-    """
-    for b, a in seq:
-        if b.name == "pedestal":  # azimuthal movement
-            db = np.array((0, 0, radians(a / nSteps)), float)
-        else:  # polar movement
-            db = np.array((0, radians(a / nSteps), 0), float)
-        for _ in range(nSteps):
-            b.boom_setter(list(b.boom + db))
-            # update all subsystem center of mass points. Need to do that from last boom!
-            crane.calc_statics_dynamics(dt=None)
-            yield (crane)
-
-
-# @pytest.mark.skip("Animate crane movement")
-def test_animation(crane: Crane, show: bool = False):
-    if not show:  # if nothing can be shown, we do not need to run it
-        return
-
-    def init():
-        """Perform the needed initializations."""
-        ax.set_xlim(-10, 10)
-        ax.set_ylim(-10, 10)
-        ax.set_zlim(0, 10)  # type: ignore [attr-defined] ## according to matplotlib recommendations
-        for b in crane.booms():
-            lw = {"pedestal": 15, "rope": 2}.get(b.name, 7)
-            lines.append(
-                ax.plot(
-                    [b.origin[0], b.end[0]],
-                    [b.origin[1], b.end[1]],
-                    [b.origin[2], b.end[2]],
-                    linewidth=lw,
-                )
-            )
-
-    def update(crane: Crane):
-        """Based on the updated first boom (i.e. the fixation), draw any desired data"""
-        for i, b in enumerate(crane.booms()):
-            lines[i][0].set_data_3d(
-                [b.origin[0], b.end[0]],
-                [b.origin[1], b.end[1]],
-                [b.origin[2], b.end[2]],
-            )
-
-    f, p, b1, r = list(crane.booms())
-    fig = plt.figure(figsize=(15, 15), layout=None)  # "constrained")
-    ax = plt.axes(projection="3d")  # , data=line)
-    lines: list[Any] = []
-
-    _ = FuncAnimation(
-        fig,
-        update,  # type: ignore  ## this is a function!
-        frames=animate_sequence(crane, seq=((p, -90), (b1, -45))),  # yields crane object as frame
-        init_func=init,  # type: ignore  ## this is a function!
-        interval=1000,
-        blit=False,
-        cache_frame_data=False,
-    )
-    plt.title("Crane animation", loc="left")
-    plt.show()
-    # assert np.allclose(r.origin, (0, -15 / sqrt(2), 3 + 15 / sqrt(2)))
-
-
-def movement(crane: Crane, dt: float = 0.01, t_end: float = 10.0) -> Generator[tuple[float, Crane], None, None]:
-    """Create movement of the crane through definition and usage of Controls.
-    Generator function. Returns a `Generator` which steps through time and sequentially yields updated frames in the form of tuple (time, crane) objects.
-    time is defined global as a simple way to draw the current time together with the title.
-    """
-    # initial definition of controls and start values
-    controls = Controls(limit_err=logging.WARNING)  # CRITICAL)
-    f, p, b1, r = list(crane.booms())
-    controls.append("turn", (None, (-0.31, 0.31), (-0.16, 0.16)))  # free rotation, max 1 turn/20sec, 2sec to max
-    controls.append("luff", ((0, 1.58), (-0.18, 0.09), (-0.09, 0.05)))  # 90 deg, 5/-2.5 deg/sec, 2sec to max
-    controls.append("boom", ((8, 50), (-0.2, 0.1), (-0.1, 0.05)))  # 8m..50m, 0.1/-0.2 m/sec, 2sec to max
-    controls.append("wire", ((0.5, 50), (-0.1, 1.0), (-0.05, 0.1)))  # 0.5m..50m, -0.1/1 m/sec, 2sec to max
-    f, p, b1, r = list(crane.booms())
-    controls.current[2][0] = 8.0  # b1 starts with 8m
-    controls.current[1][0] = np.radians(90)  # b1 starts at 90 deg
-    controls.current[3][0] = 0.5  # wire length starts 0.5m
-
-    # From time 0 we set three goals
-    controls.setgoal("turn", 0, np.radians(90), 0.0)  # turn pedestal 90 deg
-    controls.setgoal("luff", 0, np.radians(45), 0.0)  # luff boom to 45 deg
-    controls.setgoal("boom", 1, 0.1, 0.0)  # increase length 0.1m/s
-    for time in np.linspace(0.0, t_end, int(t_end / dt) + 1):
-        if time > 10 and controls.goals[3] is None:  # Start to increase wire length with 1m/s
-            controls.setgoal("wire", 1, 1.0, 10.0)
-        controls.step(time, dt)
-        if controls.goals[3] is not None:
-            r.boom_setter((controls.current[3][0], None, None))
-        if controls.goals[1] is not None or controls.goals[2] is not None:
-            b1.boom_setter((controls.current[2][0], controls.current[1][0], None))
-        if controls.goals[0] is not None:
-            p.boom_setter((None, None, controls.current[0][0]))
-        crane.do_step(time, dt)
-        yield (time + dt, crane)
-
-
-def test_animation_control(crane: Crane, show: bool = False):
-    if not show:  # if nothing can be shown, we do not need to run it
-        return
-    ani = AnimateCrane(crane, movement, dt=0.1, t_end=20)  # type: ignore  ## It is a Generator!
-    ani.do_animation()
 
 
 def show_crane(_crane: Crane, markCOM: bool = True, markSubCOM: bool = True, title: str | None = None):
@@ -795,8 +856,8 @@ def test_orientation(crane: Crane, show: int | bool = False):
             show_crane(crane, True, False, title=title)
         assert np.allclose(p.end, _p), f"Expected (p) {_p}, found {p.end}"
         assert np.allclose(b1.end, _b1), f"Expected (b1) {_b1}, found {b1.end}"
-        assert np.allclose(r.end, wire_end(b1.end, _r, 1.0, relaxed), atol=1e-4), (
-            f"Expected (wire) {wire_end(b1.end, _r, 1.0, relaxed)}. Found {r.end}"
+        assert np.allclose(w.end, wire_end(b1.end, _r, 1.0, relaxed), atol=1e-4), (
+            f"Expected (wire) {wire_end(b1.end, _r, 1.0, relaxed)}. Found {w.end}"
         )
 
     def rotate_calc_check(
@@ -804,19 +865,20 @@ def test_orientation(crane: Crane, show: int | bool = False):
         absolute: bool,
         _p: tuple[float, ...],
         _b1: tuple[float, ...],
-        _r: tuple[float, ...],
+        _w: tuple[float, ...],
         show_it: int,
         title: str,
         relaxed: bool,
     ):
         crane.rotate(angles, absolute=absolute)  # roll 90 deg
         crane.calc_statics_dynamics()
-        if relaxed:
-            r.pendulum_relax()
-        crane_check(_p, _b1, _r, show_it=show_it, title=title, relaxed=relaxed)
+        if relaxed and isinstance(w, Wire):
+            w.pendulum_relax()
+        crane_check(_p, _b1, _w, show_it=show_it, title=title, relaxed=relaxed)
 
-    f, p, b1, r = [b for b in crane.booms()]
-    r.boom_setter((1.0, None, None))  # wire 1m
+    f, p, b1, w = [b for b in crane.booms()]
+    assert isinstance(w, Wire)
+    w.boom_setter((1.0, None, None))  # wire 1m
     _a = radians(90)  # the angle used in the rotations
 
     rotate_calc_check((0, 0, 0), False, (0, 0, 3), (10, 0, 3), (10, 0, 2), 1, "test_orientation(initial).", False)
@@ -843,7 +905,7 @@ def test_orientation(crane: Crane, show: int | bool = False):
     crane.d_angular = np.array((np.radians(1), 0, 0), float)
     for i in range(90):
         crane.do_step(i, 1.0)
-    r.pendulum_relax()
+    w.pendulum_relax()
     crane.calc_statics_dynamics()
     if show & 32 >= 32:
         show_crane(crane, True, False, title="roll, pitch, yaw successively")
@@ -853,12 +915,13 @@ def test_orientation(crane: Crane, show: int | bool = False):
 
 def test_force_torque(crane: Crane, show: bool = False):
     """Check that results for force and torque are correct with respect to crane states and movements."""
-    f, p, b1, r = [b for b in crane.booms()]
+    f, p, b1, w = [b for b in crane.booms()]
+    assert isinstance(w, Wire)
     p.mass = 100
     p.mass_center = (0.5, 0, 0)
     p.boom_setter((10, None, None))
     b1.mass = 100
-    r.mass = 0.0
+    w.mass = 0.0
     traces: dict[str, list[float]]
     # -----------------------------------------------------------------
     logger.info("all booms upwards. Calculate static force and torque")
@@ -891,12 +954,12 @@ def test_force_torque(crane: Crane, show: bool = False):
     crane.velocity = np.array((0, 0, 0), float)
     crane.d_velocity = np.array((0, 0, 0), float)
     b1.boom_setter((None, np.radians(90), 0))
-    r.boom_setter((10, None, None))
-    set_wire_direction(r, (90, 0), degrees=True)
-    r.mass = 50
-    r.pendulum_relax()
+    w.boom_setter((10, None, None))
+    set_wire_direction(w, (90, 0), degrees=True)
+    w.mass = 50
+    w.pendulum_relax()
     crane.do_step(3.0, 1.0)
-    assert np.allclose(r.end, (10, 0, 0))
+    assert np.allclose(w.end, (10, 0, 0))
     assert abs(crane.c_m_sub[0] - 250) < 1e-10, f"Mass {crane.c_m_sub[0]}"
     assert np.allclose(crane.force, (0, 0, -9.81 * 250))
     c_m = np.array(((5 * 100 + 10 * 50) / 250, 0, (5 * 100 + 10 * 100) / 250), float)
@@ -907,18 +970,25 @@ def test_force_torque(crane: Crane, show: bool = False):
     dt = 0.01
     time = 0.0
     _time: list[float] = []
-    traces = {"xe": [], "load": [], "force": [], "torque": []}
+    _xe: list[float] = []
+    _load: list[float] = []
+    _force: list[float] = []
+    _torque: list[float] = []
     while time < 20.0:
         crane.d_velocity = np.array((0.1 * np.sin(1.0 * time), 0, 0), float)
         _time.append(time)
         crane.do_step(time, dt)
-        traces["xe"].append(r.origin[0])
-        traces["load"].append(r.end[0])
-        traces["force"].append(crane.force[0])
-        traces["torque"].append(crane.torque[1])
+        _xe.append(w.origin[0])
+        _load.append(w.end[0])
+        _force.append(crane.force[0])
+        _torque.append(crane.torque[1])
         time += dt
-    if False:  # show:
-        do_show(_time, traces, {"xe": 1, "load": 1, "force": 2, "torque": 2})
+    if show:
+        do_show(
+            _time,
+            traces={"xe": _xe, "load": _load, "force": _force, "torque": _torque},
+            selection={"xe": 1, "load": 1, "force": 2, "torque": 2},
+        )
     # ---------------------------------------------------------------
     logger.info("Sinusoidal pitch acceleration: a*sin(w*t)")
     dt = 0.01
@@ -929,13 +999,24 @@ def test_force_torque(crane: Crane, show: bool = False):
         crane.d_angular = np.array((0, 0.1 * np.sin(1.0 * time), 0), float)
         _time.append(time)
         crane.do_step(time, dt)
-        traces["xe"].append(r.origin[0])
-        traces["load"].append(r.end[0])
-        traces["force"].append(crane.force[0])
-        traces["torque"].append(crane.torque[1])
+        traces["xe"].append(float(w.origin[0]))
+        traces["load"].append(float(w.end[0]))
+        traces["force"].append(float(crane.force[0]))
+        traces["torque"].append(float(crane.torque[1]))
         time += dt
     if show:
         do_show(_time, traces, {"xe": 1, "load": 1, "force": 2, "torque": 2})
+
+
+# def test_last_origins():
+#     lo = LastOrigins()
+#     for t in (1.0, 2.5, 5.0):
+#         lo.append( t, np.array( (np.sin(t), np.cos(t), t**2), float))
+#     assert lo.times[1] == 2.5
+#     assert np.allclose( lo.orgs[1], (np.sin(2.5), np.cos(2.5), 2.5**2))
+#     der1, der2 = lo.derivatives()
+#     print("DER1", der1, (np.cos(2.5), -np.sin(2.5), 2*2.5))
+#     print("DER2", der2, (-np.sin(2.5), -np.cos(2.5), 2.0))
 
 
 if __name__ == "__main__":
@@ -950,7 +1031,7 @@ if __name__ == "__main__":
     # test_mass_center()
     # test_initial(_crane())
     # test_orientation(_crane(), 32)
-    # test_pendulum(_crane(), show=True)
+    # test_pendulum(show=True)
     # test_animate_pendulum(show=True)
     # test_sequence(_crane(), show=True)
     # test_change_length(_crane(), show=True)
@@ -959,3 +1040,4 @@ if __name__ == "__main__":
     # test_animation(_crane(), show=True)
     # test_animation_control(_crane(), show=True)
     # test_force_torque(_crane(),show=True)
+    # test_last_origins()

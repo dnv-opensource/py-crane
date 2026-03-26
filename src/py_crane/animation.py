@@ -1,6 +1,6 @@
 # pyright: reportUnknownMemberType=false
 import logging
-from typing import Any, Generator, Protocol, TypeAlias, cast
+from typing import Any, Generator, Protocol, Sequence, TypeAlias, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,11 +9,10 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3D
 
-from py_crane.boom import Boom
+from py_crane.boom import Boom, Wire
 from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 FrameGenerator: TypeAlias = Generator[tuple[float, Crane], None, None]
 
@@ -171,7 +170,7 @@ class AnimatePendulum(object):
         dt: float = 0.01,
         t_end: float = 10.0,
         figsize: tuple[int, int] = (8, 8),
-        axes_lim: tuple[tuple[int, int], ...] = ((-10, 10), (-10, 10), (-10, 10)),
+        axes_lim: tuple[tuple[int, int], ...] = ((-10, 10), (-10, 10), (0, 10)),
         interval: int = 10,
         repeat: bool = False,
         title: str = "Pendulum animation",
@@ -182,14 +181,15 @@ class AnimatePendulum(object):
         # instantiate a very simple crane
         self.crane = Crane()
         self.wire = self.crane.add_boom(
-            name="wire",
+            "wire",
             description="The wire fixed to the fixation. Flexible connection",
             mass=1.0,
             mass_center=1.0,
             boom=(length, *(np.radians(angles) if degrees else angles)),
             q_factor=q_factor,
         )
-        self.wire.r_v = v0
+        assert isinstance(self.wire, Wire)
+        self.wire.cm_v = v0
         self.dt = dt
         self.t_end = t_end
         self.figsize = figsize
@@ -254,6 +254,97 @@ class AnimatePendulum(object):
             init_func=self.init_fig,  # type: ignore[reportArgumentType, arg-type]  # ok as long as `blit=False`
             interval=self.interval,
             repeat=self.repeat,
+            blit=False,
+            cache_frame_data=False,
+        )
+        plt.show()
+
+
+class AnimatePlayBackLines(object):
+    """Uses the matplotlib FuncAnimation for re-playing lines recorded beforehand.
+
+    Args:
+        data (tuple[np.ndarray]): the input data. time is expected as the first array,
+           then the base point and then any number of end-points (connected lines)
+        lw (tuple[int,...]): Optional specification of the line width of the drawn lines. Default: 1 for all
+        figsize (tuple) = (8,8): figure size in inches
+        interval (int) = 200: Time in milliseconds between animation frames
+        title (str) = "Lines re-player": Figure title
+    """
+
+    def __init__(
+        self,
+        data: Sequence[np.ndarray],
+        lw: Sequence[int] | None = None,
+        figsize: tuple[int, int] = (8, 8),
+        interval: int = 200,
+        title: str = "Crane animation",
+    ):
+        assert len(data) > 0, "No data. Cannot animate."
+        self.data = data
+        self.lw = (1,) * (len(data) - 1) if lw is None else lw
+        self.times = data[0]
+        self.figsize = figsize
+        self.axes_lim = self._get_axes_lim(data)
+        self.interval = interval
+        self.title = title
+        self.lines: list[list[Line3D]] = []
+        self.fig: Figure = plt.figure(figsize=self.figsize, layout=None)  # "constrained")
+
+    def _get_axes_lim(self, data: Sequence[np.ndarray]) -> list[list[float]]:
+        """Get the limits of time (data[0]) and all points. Time shall be sorted in ascening order."""
+        length = len(data[0])
+        assert all(len(data[i + 1]) == length for i in range(len(data) - 1)), (
+            f"Columns of 'data' not equal length {length}"
+        )
+        assert all(data[i].shape == (length, 3) for i in range(1, len(data))), "Data points shall be 3D"
+        assert all(data[0][i] < data[0][i + 1] for i in range(length - 1)), "Column 0 (time) is unsorted"
+        axes_lim = [[float("inf"), float("-inf")], [float("inf"), float("-inf")], [float("inf"), float("-inf")]]
+        for i in range(len(data) - 1):
+            for k in range(3):
+                axes_lim[k][0] = min(axes_lim[k][0], int(np.min(data[i + 1]) - 1))
+                axes_lim[k][1] = max(axes_lim[k][1], int(np.max(data[i + 1]) + 1))
+        return axes_lim
+
+    def init_fig(self) -> None:
+        """Perform the needed initializations."""
+        ax: Axes3D = plt.axes(projection="3d")  # , data=line)  # pyright: ignore[reportAssignmentType]
+        ax.set_xlim(self.axes_lim[0])
+        ax.set_ylim(self.axes_lim[1])
+        ax.set_zlim(self.axes_lim[2])
+        start: np.ndarray
+        end: np.ndarray
+
+        for i in range(1, len(self.data) - 1):
+            start, end, lw = self.data[i][0], self.data[i + 1][0], self.lw[i - 1]
+            # start, end, lw in zip(self.data[1:-1], self.data[2:], self.lw, strict=True):
+            self.lines.append(
+                cast(
+                    list[Line3D],
+                    ax.plot([start[0], end[0]], [start[1], end[1]], [start[2], end[2]], linewidth=lw),
+                )
+            )
+
+    def update(self, row: int):
+        """Receives the frames from FuncAnimation with updated line data. Draw the booms as lines by data rows."""
+        time = self.data[0][row]
+        for i in range(len(self.data) - 2):  # all lines
+            self.lines[i][0].set_data_3d(
+                [self.data[i + 1][row][0], self.data[i + 2][row][0]],
+                [self.data[i + 1][row][1], self.data[i + 2][row][1]],
+                [self.data[i + 1][row][2], self.data[i + 2][row][2]],
+            )
+        _ = plt.title(f"{self.title} ({time:.1f})", loc="left")
+
+    def do_animation(self):
+        """Do the animation. It generates frames and updates the animation plot."""
+        _ = FuncAnimation(
+            self.fig,
+            self.update,  # type: ignore[reportArgumentType, arg-type]  # ok as long as `blit=False`
+            frames=range(len(self.data[0])),
+            init_func=self.init_fig,  # type: ignore[reportArgumentType, arg-type]  # ok as long as `blit=False`
+            interval=self.interval,
+            repeat=False,
             blit=False,
             cache_frame_data=False,
         )

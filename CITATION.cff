@@ -1,5 +1,5 @@
 title: py-crane
-version: 0.3.0
+version: 0.3.1
 abstract: >-
   Basic crane simulation model including publication as FMU, for usage in the SEACo project.
 type: software

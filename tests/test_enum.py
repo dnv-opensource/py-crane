@@ -1,4 +1,4 @@
-from py_crane.enum import Change
+from py_crane.enums import Change
 
 
 def test_types():
