@@ -5,12 +5,10 @@ from functools import partial
 from typing import Any, Never, Sequence, cast
 
 import numpy as np
-from component_model.model import Model
 
-from py_crane.boom import Boom
-from py_crane.enum import Change
-
-# from py_crane.crane import Crane
+from py_crane.boom import Boom, Wire
+from py_crane.crane import Crane
+from py_crane.enums import Change
 
 logger = logging.getLogger(__name__)
 
@@ -60,37 +58,32 @@ class BoomFMU(Boom):
 
     def __init__(
         self,
+        model: Crane,
+        name: str,
+        /,
         mass_rng: tuple[str, str] | None = None,
         boom_rng: tuple[tuple[Any, Any] | None | Sequence[Never], ...] = tuple(),
-        animationLW: int = 5,
         **kwargs: Any,
     ):
         from py_crane.crane_fmu import CraneFMU
 
-        model: Model | None = kwargs.get("model", None)
-        assert model is not None, "The 'model' argument is needed when instantiating a Boom"
-        name: str | None = kwargs.get("name", None)
-        assert name is not None, "A unique Boom name is needed when instantiating a Boom"
-        self._name = name
+        # we need 'early access' to some of the properties
         assert isinstance(model, CraneFMU), f"BoomFMU must link to a CraneFMU. Found {type(model)}"
+        self._name = name
         model.ensure_boom(self)  # ensure that the boom object is registered with the crane
         u_time = model.u_time
         u_length = model.u_length
         u_angle = "deg" if model.degrees else "rad"
         # make some super-arguments 'visible' direct for usage here
-        description: str = kwargs.get("description", "")
-        anchor0: Boom | None = kwargs.get("anchor0", None)
-        assert anchor0 is not None, "The 'anchor0' argument is needed here. ('fixation' shall be created through Boom)"
-        mass: float = kwargs.get("mass", 1.0)
-        mass_center: float | tuple[float, float, float] = kwargs.get("mass_center", 0.5)
-        boom: tuple[float, float, float] = kwargs.get("boom", (1.0, 0.0, 0.0))
-        q_factor: float = kwargs.get("q_factor", 0.0)
+        mass = kwargs.pop("mass") if "mass" in kwargs else "1.0kg"
+        boom = kwargs.pop("boom") if "boom" in kwargs else (1.0, 0.0, 0.0)
+        q_factor = kwargs.pop("q_factor") if "q_factor" in kwargs else 0.0
 
         # Interface specifications. When we have the start values we can instantiate the Boom
         _c, _v = ("parameter", "fixed") if mass_rng is None else ("input", "continuous")
         self._mass = model.add_variable(
-            f"{name}.mass",
-            description=f"Mass of boom {name}",
+            f"{self._name}.mass",
+            description=f"Mass of boom {self._name}",
             causality=_c,
             variability=_v,
             start=mass,
@@ -118,8 +111,8 @@ class BoomFMU(Boom):
                 or (boom_rng[i][0] > float("-inf") and boom_rng[i][1] < float("inf"))  # type: ignore[index]
             ), f"The range of {self.name}[{i}] should not be limited, as radian variables are periodic"
         self._boom = model.add_variable(
-            f"{name}.boom",
-            description=f"Length [m] and direction [rad] of {name} from anchor point in spherical coordinates",
+            f"{self._name}.boom",
+            description=f"Length [m] and direction [rad] of {self._name} from anchor point in spherical coordinates",
             causality="input",
             variability="continuous",
             start=_boom,
@@ -127,19 +120,33 @@ class BoomFMU(Boom):
             on_set=partial(self.boom_setter, ch=Change.ROT.value if q_factor == 0 else 0),
         )
         assert isinstance(self._boom.owner, BoomFMU), f"Owner of variable {self._boom}: {self._boom.owner}"
-        super().__init__(
-            model,
-            name,
-            description,
-            anchor0,
-            mass=mass0,
-            mass_center=mass_center,  # this could be made an interface variable in advanced cranes
-            boom=getattr(self._boom.owner, self._boom.local_name),  #! not getter()! boom.py uses internal variables!
-            q_factor=q_factor,
-        )
+        if q_factor == 0.0:
+            Boom.__init__(
+                self,
+                model,
+                name,
+                mass=mass0,
+                boom=getattr(
+                    self._boom.owner, self._boom.local_name
+                ),  #! not getter()! boom.py uses internal variables!
+                q_factor=0.0,
+                **kwargs,
+            )
+        else:
+            Wire.__init__(
+                self,  # type: ignore[arg-type]  ## call sequence ensures that it is called from Wire
+                model,
+                name,
+                mass=mass0,
+                boom=getattr(
+                    self._boom.owner, self._boom.local_name
+                ),  #! not getter()! boom.py uses internal variables!
+                q_factor=q_factor,
+                **kwargs,
+            )
         # additional output variables
         self._end = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
-            f"{name}.end",
+            f"{self._name}.end",
             description="Cartesian vector of the end of the boom",
             causality="output",
             variability="continuous",
@@ -148,14 +155,14 @@ class BoomFMU(Boom):
         # additional derivative variables (but not for fixation, as these are Euler movements on the crane!)
         if self.name != "fixation":
             self._der1_boom = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
-                f"der({name}.boom)",
+                f"der({self._name}.boom)",
                 description="Continuous change to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
                 causality="input",
                 variability="continuous",
                 start=(f"0 m/{u_time}", f"0 {u_angle}/{u_time}", f"0 {u_angle}/{u_time}"),
             )
             self._der2_boom = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
-                f"der(der({name}.boom))",
+                f"der(der({self._name}.boom))",
                 description="Acceleration to the boom (length, polar-rotation, azimuthal-rotation) wrt. origin",
                 causality="input",
                 variability="continuous",
@@ -163,9 +170,27 @@ class BoomFMU(Boom):
             )
             if self._mass.range[0].rng[0] != self._mass.range[0].rng[1]:  # mass is changeable (normally the load)
                 self._der1_mass = model.add_variable(  # pyright: ignore[reportUnknownMemberType]  # should become obsolete once component_model is updated.
-                    f"der({name}.mass)",
+                    f"der({self._name}.mass)",
                     description="Continuous change to the mass (i.e. load change)",
                     causality="input",
                     variability="continuous",
                     start=f"0 kg/{u_time}",
                 )
+
+
+class WireFMU(BoomFMU, Wire):
+    """The FMU definitions of a :py:class:`.Wire` -
+    a special stiff boom, attached with a flexible joint to a parent boom -
+    normally the last boom of a crane.
+    """
+
+    def __init__(
+        self,
+        model: Crane,
+        name: str,
+        /,
+        mass_rng: tuple[str, str] | None = None,
+        boom_rng: tuple[tuple[Any, Any] | None | Sequence[Never], ...] = tuple(),
+        **kwargs: Any,
+    ):
+        super().__init__(model, name, mass_rng, boom_rng, **kwargs)
