@@ -198,7 +198,7 @@ Run ``uv sync -U`` to create a virtual environment and install all project depen
    **Note**: ``uv`` will create a new virtual environment called
    ``.venv`` in the project root directory when running ``uv sync -U``
    the first time. Optionally, you can create your own virtual
-   environment using e.g. ``uv venv``, before running ``uv sync -U``.
+   environment using e.g. ``uv venv``, before running ``uv sync -U``.
 
 5. (Optional) Activate the virtual environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -282,7 +282,7 @@ Distributed under the MIT license. See `LICENSE <LICENSE.md/>`_ for more informa
 
 Contributing
 ------------
-Anybody in the FMU, OSPand SEACo community is especially welcome to contribute to this code, to make it better,
+Anybody in the FMU, OSP and SEACo community is especially welcome to contribute to this code, to make it better,
 and especially including other features from model assurance and from SEACo issues.
 
 To contribute, follow these steps:
