@@ -2,7 +2,6 @@ import logging
 import os
 from pathlib import Path
 from shutil import rmtree
-from typing import Any
 
 import pytest
 
