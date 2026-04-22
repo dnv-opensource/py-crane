@@ -78,7 +78,7 @@ rest = ["docutils>=0.22.4"]
 test = [
     "FMPy>=0.3.29",
     "matplotlib>=3.10",
-    "plotly>=6.5",
+    "plotly>=6.6",
     "libcosimpy >= 0.0.5",
 ]
 
