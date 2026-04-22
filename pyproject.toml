@@ -69,7 +69,7 @@ dependencies = [
     "component-model>=0.4.0",
     "pythonfmu>=0.7.0",
     "numpy>=2.3",
-    "scipy>=1.17.0",
+    "scipy>=1.17.1",
 ]
 # dynamic = ["version"]
 
