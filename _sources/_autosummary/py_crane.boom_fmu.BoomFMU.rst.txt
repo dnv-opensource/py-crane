@@ -1,0 +1,40 @@
+BoomFMU
+=======
+
+.. currentmodule:: py_crane.boom_fmu
+
+.. autoclass:: BoomFMU
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~BoomFMU.__init__
+      ~BoomFMU.boom_setter
+      ~BoomFMU.calc_statics_dynamics
+      ~BoomFMU.rot
+      ~BoomFMU.update_child
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~BoomFMU.c_m
+      ~BoomFMU.c_m_sub
+      ~BoomFMU.end
+      ~BoomFMU.force
+      ~BoomFMU.length
+      ~BoomFMU.model
+      ~BoomFMU.name
+      ~BoomFMU.torque
+   
+   

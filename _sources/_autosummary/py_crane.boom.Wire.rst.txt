@@ -1,0 +1,44 @@
+Wire
+====
+
+.. currentmodule:: py_crane.boom
+
+.. autoclass:: Wire
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Wire.__init__
+      ~Wire.boom_setter
+      ~Wire.calc_statics_dynamics
+      ~Wire.damping
+      ~Wire.pendulum
+      ~Wire.pendulum_instantaneous
+      ~Wire.pendulum_relax
+      ~Wire.rot
+      ~Wire.update_child
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Wire.c_m
+      ~Wire.c_m_sub
+      ~Wire.end
+      ~Wire.force
+      ~Wire.length
+      ~Wire.model
+      ~Wire.name
+      ~Wire.torque
+   
+   

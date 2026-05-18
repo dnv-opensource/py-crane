@@ -1,0 +1,75 @@
+CraneFMU
+========
+
+.. currentmodule:: py_crane.crane_fmu
+
+.. autoclass:: CraneFMU
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~CraneFMU.__init__
+      ~CraneFMU.add_boom
+      ~CraneFMU.add_derivative
+      ~CraneFMU.add_variable
+      ~CraneFMU.boom_by_name
+      ~CraneFMU.booms
+      ~CraneFMU.build
+      ~CraneFMU.calc_statics_dynamics
+      ~CraneFMU.check_flags
+      ~CraneFMU.dirty_do
+      ~CraneFMU.dirty_ensure
+      ~CraneFMU.do_step
+      ~CraneFMU.ensure_boom
+      ~CraneFMU.ensure_requirements
+      ~CraneFMU.enter_initialization_mode
+      ~CraneFMU.exit_initialization_mode
+      ~CraneFMU.get_boolean
+      ~CraneFMU.get_integer
+      ~CraneFMU.get_real
+      ~CraneFMU.get_string
+      ~CraneFMU.log
+      ~CraneFMU.make_copyright_license
+      ~CraneFMU.owner_hierarchy
+      ~CraneFMU.ref_to_var
+      ~CraneFMU.register_variable
+      ~CraneFMU.rot
+      ~CraneFMU.rotate
+      ~CraneFMU.set_boolean
+      ~CraneFMU.set_integer
+      ~CraneFMU.set_real
+      ~CraneFMU.set_string
+      ~CraneFMU.setup_experiment
+      ~CraneFMU.terminate
+      ~CraneFMU.to_crane_angle_default
+      ~CraneFMU.to_xml
+      ~CraneFMU.variable_by_name
+      ~CraneFMU.vars_iter
+      ~CraneFMU.xml_unit_definitions
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~CraneFMU.angular
+      ~CraneFMU.boom0
+      ~CraneFMU.d_angular
+      ~CraneFMU.dirty
+      ~CraneFMU.instances
+      ~CraneFMU.log_categories
+      ~CraneFMU.position
+      ~CraneFMU.units
+      ~CraneFMU.velocity
+      ~CraneFMU.to_crane_angle
+   
+   

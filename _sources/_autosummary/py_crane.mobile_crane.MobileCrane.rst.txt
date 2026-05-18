@@ -1,0 +1,75 @@
+MobileCrane
+===========
+
+.. currentmodule:: py_crane.mobile_crane
+
+.. autoclass:: MobileCrane
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~MobileCrane.__init__
+      ~MobileCrane.add_boom
+      ~MobileCrane.add_derivative
+      ~MobileCrane.add_variable
+      ~MobileCrane.boom_by_name
+      ~MobileCrane.booms
+      ~MobileCrane.build
+      ~MobileCrane.calc_statics_dynamics
+      ~MobileCrane.check_flags
+      ~MobileCrane.dirty_do
+      ~MobileCrane.dirty_ensure
+      ~MobileCrane.do_step
+      ~MobileCrane.ensure_boom
+      ~MobileCrane.ensure_requirements
+      ~MobileCrane.enter_initialization_mode
+      ~MobileCrane.exit_initialization_mode
+      ~MobileCrane.get_boolean
+      ~MobileCrane.get_integer
+      ~MobileCrane.get_real
+      ~MobileCrane.get_string
+      ~MobileCrane.log
+      ~MobileCrane.make_copyright_license
+      ~MobileCrane.owner_hierarchy
+      ~MobileCrane.ref_to_var
+      ~MobileCrane.register_variable
+      ~MobileCrane.rot
+      ~MobileCrane.rotate
+      ~MobileCrane.set_boolean
+      ~MobileCrane.set_integer
+      ~MobileCrane.set_real
+      ~MobileCrane.set_string
+      ~MobileCrane.setup_experiment
+      ~MobileCrane.terminate
+      ~MobileCrane.to_crane_angle_default
+      ~MobileCrane.to_xml
+      ~MobileCrane.variable_by_name
+      ~MobileCrane.vars_iter
+      ~MobileCrane.xml_unit_definitions
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~MobileCrane.angular
+      ~MobileCrane.boom0
+      ~MobileCrane.d_angular
+      ~MobileCrane.dirty
+      ~MobileCrane.instances
+      ~MobileCrane.log_categories
+      ~MobileCrane.position
+      ~MobileCrane.units
+      ~MobileCrane.velocity
+      ~MobileCrane.to_crane_angle
+   
+   
