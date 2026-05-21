@@ -25,7 +25,7 @@ Due to the limitation of my hardware, my experimental environment cannot show in
 The server prints live textual status and provides /debug for programmatic verification so you do not need to rely solely on the video.
 
 ## Minimal quick commands
-Start server: python py-crane/llm_interaction/crane_server.py
-Test commands: python py-crane/llm_interaction/test_crane_server.py
-Build/configure crane: python py-crane/llm_interaction/configuration_llm.py
-Offline demo: python py-crane/llm_interaction/demo_llm_control.py
+* Start server: python py-crane/llm_interaction/crane_server.py
+* Test commands: python py-crane/llm_interaction/test_crane_server.py
+* Build/configure crane: python py-crane/llm_interaction/configuration_llm.py
+* Offline demo: python py-crane/llm_interaction/demo_llm_control.py
