@@ -70,6 +70,9 @@ dependencies = [
     "pythonfmu>=0.7.0",
     "numpy>=2.4",
     "scipy>=1.17.1",
+    "matplotlib>=3.10.9",
+    "fastapi>=0.136.1",
+    "uvicorn>=0.47.0",
 ]
 # dynamic = ["version"]
 

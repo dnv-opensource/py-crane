@@ -134,6 +134,38 @@ class AnimateCrane(object):
             cache_frame_data=False,
         )
         plt.show()
+    
+    def save_animation(self, filename: str) -> None:
+        """Save animation to a file (MP4, GIF, etc).
+        Args:
+            filename (str): Output filename (e.g., 'animation.mp4' or 'animation.gif')
+        """
+        ani = FuncAnimation(
+            self.fig,
+            self.update,
+            frames=self.movement(self.crane, dt=self.dt, t_end=self.t_end, **self.kwargs),
+            init_func=self.init_fig,
+            interval=self.interval,
+            repeat=self.repeat,
+            blit=False,
+            cache_frame_data=False,
+        )
+
+        if filename.endswith(".mp4"):
+            writer = "ffmpeg"
+        elif filename.endswith(".gif"):
+            writer = "pillow"
+        else:
+            writer = "ffmpeg"  # 默认 MP4
+
+        try:
+            ani.save(filename, writer=writer, fps=1000 // self.interval)
+            print(f"✓ Animation saved to {filename}")
+        except Exception as e:
+            print(f"✗ Failed to save animation: {e}")
+            print("  Make sure ffmpeg or pillow is installed:")
+            print("  - For MP4: pip install ffmpeg-python")
+            print("  - For GIF: pip install Pillow")
 
     def close(self):
         """Close the animation."""
