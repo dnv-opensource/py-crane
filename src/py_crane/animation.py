@@ -134,11 +134,11 @@ class AnimateCrane(object):
             cache_frame_data=False,
         )
         plt.show()
-    
+
     def save_animation(self, filename: str) -> None:
         """Save animation to a file (MP4, GIF, etc).
         Args:
-            filename (str): Output filename (e.g., 'animation.mp4' or 'animation.gif')
+            filename (str): Output filename (e.g., 'animation.mp4' or 'animation.gif').
         """
         ani = FuncAnimation(
             self.fig,

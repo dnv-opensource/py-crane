@@ -1,11 +1,10 @@
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
-import numpy as np
 
 
 class CommandType(Enum):
-    """LLM command types"""
+    """LLM command types."""
 
     EXTERNAL_FORCE = "external_force"  # Apply external force
     WIRE_INIT_VELOCITY = "wire_init_velocity"  # Set initial velocity to wire
@@ -16,7 +15,7 @@ class CommandType(Enum):
 
 @dataclass
 class Command:
-    """Command object parsed from LLM"""
+    """Command object parsed from LLM."""
 
     type: CommandType
     target: str  # "wire", "boom", "pedestal"

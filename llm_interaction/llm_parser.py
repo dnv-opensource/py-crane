@@ -1,18 +1,11 @@
-import requests
 import json
 from typing import List
+
+import requests
 from llm_interaction.llm_command import Command, CommandType
 
 
 class LLMCommandParser:
-    """
-    Parse natural language to physics commands using LLM
-    Supports:
-        - Azure OpenAI
-        - Qwen (custom endpoint)
-        - OpenAI
-    """
-
     def __init__(
         self,
         api_key: str,
@@ -36,7 +29,6 @@ class LLMCommandParser:
 
         #  OpenAI
         self.model = model
-
 
     def _build_prompt(self, user_input: str) -> str:
         return f"""

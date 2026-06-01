@@ -1,8 +1,9 @@
 import logging
-import numpy as np
 from functools import partial
-from llm_interaction.llm_command import Command, CommandType
+
+import numpy as np
 from component_model.utils.controls import Control, Controls
+from llm_interaction.llm_command import Command, CommandType
 from src.py_crane.mobile_crane import MobileCrane
 
 
@@ -19,7 +20,7 @@ class PhysicsExecutor:
         self._setup_controls()
 
         self.command_state = {}
-        self.rotation_tracker = {}  
+        self.rotation_tracker = {}
 
     # ------------------------------------------------------------------
 
@@ -48,7 +49,7 @@ class PhysicsExecutor:
             [
                 Control(
                     "pedestal_azimuth",
-                    limits=(None, (-0.5, 0.5), (-0.2, 0.2)),  
+                    limits=(None, (-0.5, 0.5), (-0.2, 0.2)),
                     rw=partial(ped_az),
                 ),
                 Control(
@@ -82,9 +83,9 @@ class PhysicsExecutor:
         t0 = command.start_time
         t1 = t0 + command.duration if command.duration else None
 
-        # ---------------- start ----------------
+        # -------- start --------
         if not state["started"]:
-            if abs(t - t0) < 1e-6:
+            if t >= t0:  # FIXED: Changed from abs(t - t0) < 1e-6
                 state["started"] = True
 
                 if command.type == CommandType.BOOM_ROTATE:
@@ -92,7 +93,7 @@ class PhysicsExecutor:
 
                 elif command.type == CommandType.BOOM_LUFF:
                     print(
-                        f"[CMD_RECEIVED] type={command.type.value}, angle={command.angle}, ang_vel={command.angular_velocity}, duration={command.duration}"
+                        "[CMD_RECEIVED] type={command.type.value}, angle={command.angle}, ang_vel={command.angular_velocity}, duration={command.duration}"
                     )
                     self._start_luffing(command, cid)
 
@@ -162,10 +163,8 @@ class PhysicsExecutor:
         unclamped_target = target
         target = max(0.0, min(np.pi, target))
 
-        clamp_msg = ""
         if unclamped_target != target:
             clamp_msg = f" [CLAMPED from {unclamped_target:.4f}]"
-
         print(
             f"[LUFF_START] angle_delta={cmd.angle:.4f}, ang_vel={cmd.angular_velocity:.4f}, current_boom[1]={current:.4f}, target={target:.4f}{clamp_msg}"
         )
@@ -179,17 +178,17 @@ class PhysicsExecutor:
         # Use velocity mode to avoid exceeding speed limits
         # INVERT velocity because we inverted the angle
         self.controls["boom_polar"].setgoal(1, -cmd.angular_velocity)
-        print(f"[LUFF_SETGOAL] Set velocity goal to {-cmd.angular_velocity:.6f}")
+        print("[LUFF_SETGOAL] Set velocity goal to {-cmd.angular_velocity:.6f}")
 
     def _update_luffing(self, cmd: Command, cid):
         current = self.boom.boom[1]
         target = self.rotation_tracker[cid]["target"]
-        tolerance = 1e-4  
+        tolerance = 1e-4
 
         # Debug: Check if we're actually moving
         if abs(cmd.angular_velocity) > 1e-6:  # Only print if velocity is being used
             print(
-                f"[LUFF_UPDATE] current={current:.6f}, target={target:.4f}, vel={cmd.angular_velocity:.6f}, dist={current - target:.6f}"
+                "[LUFF_UPDATE] current={current:.6f}, target={target:.4f}, vel={cmd.angular_velocity:.6f}, dist={current - target:.6f}"
             )
 
         # Check if target reached (remember: velocity is inverted from cmd.angular_velocity)
@@ -197,12 +196,12 @@ class PhysicsExecutor:
         if cmd.angular_velocity > 0:
             # Upward: actual velocity is negative, so current should decrease
             if current <= target + tolerance:
-                print(f"[LUFF_DONE] target={target:.4f}, current={current:.4f}, finished")
+                print("[LUFF_DONE] target={target:.4f}, current={current:.4f}, finished")
                 self.controls["boom_polar"].setgoal(1, None)
         else:
             # Downward: actual velocity is positive, so current should increase
             if current >= target - tolerance:
-                print(f"[LUFF_DONE] target={target:.4f}, current={current:.4f}, finished")
+                print("[LUFF_DONE] target={target:.4f}, current={current:.4f}, finished")
                 self.controls["boom_polar"].setgoal(1, None)
 
     # ------------------------------------------------------------------
@@ -218,7 +217,7 @@ class PhysicsExecutor:
         # unclamped = target
         target = max(20.0, min(50.0, target))
 
-        print(f"[EXTEND_START] current={current:.2f}, target={target:.2f}")
+        print("[EXTEND_START] current={current:.2f}, target={target:.2f}")
 
         self.rotation_tracker[cid] = {
             "start": current,
@@ -233,7 +232,7 @@ class PhysicsExecutor:
 
         tol = 1e-4
 
-        print(f"[EXTEND_UPDATE] current={current:.4f}, target={target:.4f}")
+        print("[EXTEND_UPDATE] current={current:.4f}, target={target:.4f}")
 
         if cmd.velocity > 0:
             if current >= target - tol:

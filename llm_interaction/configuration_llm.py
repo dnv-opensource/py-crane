@@ -1,34 +1,33 @@
-#!/usr/bin/env python3
-"""
-configuration_llm.py
-
-Create an arbitrary crane from a natural-language description via LLM,
-instantiate a Crane, compute statics, and save a 3D plot image.
-"""
-
 import json
 import math
-import requests
-import numpy as np
-import matplotlib
-
-matplotlib.use("Agg")
-from py_crane.animation import AnimateCrane
 import os
-from py_crane.crane import Crane
+
+import matplotlib
+import numpy as np
+import requests
+from dotenv import load_dotenv
 from openai import AzureOpenAI
+
+from py_crane.animation import AnimateCrane
+from py_crane.crane import Crane
+
+load_dotenv()
+matplotlib.use("Agg")
+
+api_key = os.getenv("AZURE_KEY")
+azure_endpoint = os.getenv("AZURE_ENDPOINT")
 
 
 # =====================
 # LLM Config
 # =====================
 
-BACKEND = "azure"  # ✅ "azure" or "qwen"
+BACKEND = "azure"  #  "azure" or "qwen"
 
 # --- Azure ---
-AZURE_ENDPOINT = ""
-AZURE_API_KEY = ""
-AZURE_API_VERSION = ""
+AZURE_ENDPOINT = azure_endpoint
+AZURE_API_KEY = api_key
+AZURE_API_VERSION = "2024-12-01-preview"
 AZURE_DEPLOYMENT = "gpt-4o"
 
 # --- Qwen ---
@@ -100,9 +99,7 @@ class AnimateCraneWithCamera(AnimateCrane):
 
 
 def call_llm(prompt: str, backend: str = "azure") -> str:
-    """
-    Unified LLM interface (Azure / Qwen)
-    """
+    """Unified LLM interface (Azure / Qwen)."""
 
     if backend == "azure":
         client = AzureOpenAI(
@@ -153,7 +150,7 @@ def call_llm(prompt: str, backend: str = "azure") -> str:
         return response.json()["choices"][0]["message"]["content"]
 
     else:
-        raise ValueError(f"Unsupported backend: {backend}")
+        raise ValueError("Unsupported backend: {backend}")
 
 
 # =====================
@@ -166,9 +163,7 @@ def to_radians(deg):
 
 
 def build_crane_from_spec(spec: list) -> Crane:
-    """
-    Build a Crane object from LLM-generated spec.
-    """
+    """Build a Crane object from LLM-generated spec."""
 
     crane = Crane()
 
@@ -229,7 +224,7 @@ def build_crane_from_spec(spec: list) -> Crane:
 def rotating_camera_simulation(crane: Crane, dt=0.01, t_end=3.0):
     for time in np.linspace(0, t_end, int(t_end / dt) + 1):
         crane.do_step(time, dt)
-        yield (time, crane)  
+        yield (time, crane)
 
 
 def render_crane_animation(crane, output="results/llm_crane_02.mp4"):
@@ -250,7 +245,7 @@ def render_crane_animation(crane, output="results/llm_crane_02.mp4"):
 
     animator.save_animation(output)
 
-    print(f" Saved to {output}")
+    print(" Saved to {output}")
 
 
 # =====================
