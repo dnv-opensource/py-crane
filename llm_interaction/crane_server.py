@@ -70,7 +70,6 @@ def queue_command():
         cmds = parser.parse_command(text, current_time=0.0)
         print(f"[CMD] Parsed {len(cmds)} command(s)")
 
-        # ★ 立即停止所有旧运动 ★
         executor.controls["pedestal_azimuth"].setgoal(1, None)
         executor.controls["boom_polar"].setgoal(1, None)
         executor.controls["boom_length"].setgoal(1, None)
@@ -80,7 +79,6 @@ def queue_command():
             with sim_time_lock:
                 current_sim_time = sim_time
 
-            # 清空旧命令
             current_commands.clear()
 
             for cmd in cmds:
@@ -88,7 +86,6 @@ def queue_command():
                 current_commands.append(cmd)
                 print(f"[CMD] Queued: {cmd.type.value} (start_time={cmd.start_time:.2f}s, duration={cmd.duration}s)")
 
-        # 重置所有执行状态
         executor.command_state.clear()
         executor.rotation_tracker.clear()
 
@@ -370,7 +367,6 @@ def input_loop():
             with sim_time_lock:
                 current_sim_time = sim_time
 
-            # 清空旧命令
             current_commands.clear()
 
             for cmd in cmds:
@@ -378,7 +374,6 @@ def input_loop():
                 current_commands.append(cmd)
                 print(f"[INPUT] Queued: {cmd.type.value} (start_time={cmd.start_time:.2f}s, duration={cmd.duration}s)")
 
-            # 重置所有执行状态
             executor.command_state.clear()
             executor.rotation_tracker.clear()
             print("[INPUT] Ready for next command\n")

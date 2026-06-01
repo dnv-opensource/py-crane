@@ -111,15 +111,11 @@ if __name__ == "__main__":
         cache_frame_data=False,
     )
 
-    # 非阻塞显示（实时播放）
     plt.show(block=False)
 
-    # 等待动画按照真实时长播放完（可加 margin）
     time.sleep(animator.t_end + animator.dt)
 
-    # 保存到文件（需要 ffmpeg 或 Pillow 安装）
     # writer = "ffmpeg"
     # ani.save(str(out_path), writer=writer, fps=max(1, 1000 // animator.interval))
     # print("Animation saved to", out_path)
-    # 可选：保持窗口直到用户关闭
     plt.show()
