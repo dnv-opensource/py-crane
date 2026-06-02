@@ -41,7 +41,7 @@ QWEN_API_KEY = ""
 
 TEST_QUERIES = [
     "A small crane with a pedestal, one boom 5 meters long pointing forward and a 10 meter wire pointing down, no movement.",
-    "Pedestal with a single boom 10 m long, luffed up to 45 degrees and a 10 m wire.",
+    "A small crane with a pedestal, with a single boom 10 m long, luffed up to 45 degrees, and a 10 m wire pointing down, no movement.",
     "Two-segment crane: pedestal, boom1 4 m at 30 degrees, boom2 6 m at 170 degrees, and a 1.5 m wire.",
     "Knuckle-style crane: pedestal, boom1 3 m straight up, boom2 5 m at 45 degrees backward, boom3 7 m at 45 degrees forward, wire 2 m.",
     "Heavy-duty base: pedestal mass 2000 kg with a 15 m horizontal boom and a 5 m wire.",

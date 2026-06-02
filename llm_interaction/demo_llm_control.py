@@ -62,7 +62,7 @@ if __name__ == "__main__":
     print("\n Natural Language Command:\n")
     # user_command = "Lower the boom by 45 degrees in 5 seconds"
     # user_command = "Extend the boom by 20 meters in 5 seconds"
-    user_command = "Rotate the boom 90 degrees clockwise within 5 seconds"
+    user_command = "Rotate the boom 40 degrees clockwise within 5 seconds"
     print("User: {user_command}\n")
 
     # LLM parsing

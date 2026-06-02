@@ -165,8 +165,9 @@ class PhysicsExecutor:
 
         if unclamped_target != target:
             clamp_msg = f" [CLAMPED from {unclamped_target:.4f}]"
+            print(clamp_msg)
         print(
-            f"[LUFF_START] angle_delta={cmd.angle:.4f}, ang_vel={cmd.angular_velocity:.4f}, current_boom[1]={current:.4f}, target={target:.4f}{clamp_msg}"
+            f"[LUFF_START] angle_delta={cmd.angle:.4f}, ang_vel={cmd.angular_velocity:.4f}, current_boom[1]={current:.4f}, target={target:.4f}"
         )
 
         # Track target like rotation does

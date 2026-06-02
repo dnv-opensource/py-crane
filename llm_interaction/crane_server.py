@@ -413,7 +413,7 @@ if __name__ == "__main__":
 
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    print("[FLASK] Server running on http://localhost:9100")
+    print("[FLASK] Server running on http://127.0.0.1:9100")
     time.sleep(1)
 
     # Start terminal input thread

@@ -9,9 +9,9 @@ print(" Testing Crane Commands (Sequential Execution)")
 print("=" * 70)
 
 commands = [
-    ("Rotate boom 45 degrees clockwise in 10 seconds", 5),
-    ("Extend boom length to 35 meters over 5 seconds", 2),
     ("Lift boom up 30 degrees within 5 seconds", 2),
+    ("Rotate boom 45 degrees clockwise in 10 seconds", 5),
+    # ("Extend boom length to 35 meters over 5 seconds", 2),
 ]
 
 for i, (cmd_text, wait_time) in enumerate(commands, 1):
