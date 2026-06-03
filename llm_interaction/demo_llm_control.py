@@ -82,7 +82,7 @@ if __name__ == "__main__":
         movement=lambda c, dt, t_end: llm_driven_simulation(c, commands, dt, t_end),
         dt=0.01,
         t_end=5.0,
-        figsize=(12, 10),
+        figsize=(6, 5),
         axes_lim=((-60, 60), (-60, 60), (0, 70)),
         interval=10,
         title="LLM-Driven Crane Simulation",
