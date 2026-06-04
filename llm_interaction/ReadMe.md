@@ -1,31 +1,30 @@
 ## Project Overview
-Summary: Three capabilities for crane simulation: 
-(1) control crane motion with natural language via an LLM, 
-(2) generate crane configurations from natural language, 
-(3) run a continuous interactive server for streaming commands and saving replay videos. 
+LLM interaction for crane simulation,three major capabilities :
+(1) Control crane motion with natural language via LLM
+(2) Generate crane configurations from natural language descriptions
+(3) Run an interactive server for real-time command processing with live visualization
 
 ## Features & Where to Find Them
-* Natural-language motion control: parse & execute LLM commands (offline examples)
-     Files: llm_parser.py:1, physics_executor.py:1, demo_llm_control.py:1, llm_command.py:1
-* LLM-based crane configuration: build crane from a text spec and render animation
-     File: configuration_llm.py:1
-* Continuous interactive server (portal): send multiple commands while service runs; server    
-     logs and /debug endpoint provide real-time status; video saved to results/live_crane.mp4
-     Server: crane_server.py:1
-     Test/verification script: test_crane_server.py:1 (or test_crane_server_v2.py)
-     Detailed operations / instructions: SERVER_START_HERE.md:1
+* **Natural-language motion control**: Parse LLM commands and execute crane physics in real-time with matplotlib visualization
+  Files: `llm_parser.py`, `physics_executor.py`, `demo_llm_control.py`, `llm_command.py`
 
-## How to validate (brief)
-* Offline flows: run the demo or configuration scripts; they save MP4 outputs under results/.
-* Server flow: start crane_server.py, send commands to /command, poll /debug for motion_detected and command status, and download /video when ready. Logs print periodic [STATUS], [POSITION], [MOTION], [COMMAND] lines to confirm execution without the video.
+* **LLM-based crane configuration**: Build crane geometry from text specifications and display animation
+  File: `crane_configuration.py`
 
+* **Interactive server**: Send commands to running server; real-time matplotlib animation displays motion; `/debug` endpoint provides execution status
+  Server: `crane_server.py`
+  Test script: `interactive_test.py`
 
-## Notes
-Due to the limitation of my hardware, my experimental environment cannot show interactive real-time GUI; the code saves rendered animations (MP4) for verification.
-The server prints live textual status and provides /debug for programmatic verification so you do not need to rely solely on the video.
+## Real-time Visualization
+All flows use matplotlib with FuncAnimation to display crane motion in real-time. Watch the animated matplotlib window as commands execute.
 
-## Minimal quick commands
-* Start server: python py-crane/llm_interaction/crane_server.py
-* Test commands: python py-crane/llm_interaction/test_crane_server.py
-* Build/configure crane: python py-crane/llm_interaction/configuration_llm.py
-* Offline demo: python py-crane/llm_interaction/demo_llm_control.py
+## Configuration
+Set environment variables for LLM backend:
+- **Azure**: `AZURE_KEY`, `AZURE_ENDPOINT`
+- **Qwen**: `QWEN_API_URL`, `QWEN_API_KEY`
+
+## Quick Commands
+* **Offline demo**: `python llm_interaction/demo_llm_control.py`
+* **Build crane from description**: `python llm_interaction/crane_configuration.py`
+* **Start server**: `python llm_interaction/crane_server.py`
+* **Test server**: `python llm_interaction/interactive_test.py`

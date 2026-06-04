@@ -3,16 +3,17 @@ import math
 import os
 
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import requests
 from dotenv import load_dotenv
-from openai import AzureOpenAI
+from matplotlib.animation import FuncAnimation
 
-from py_crane.animation import AnimateCrane
 from py_crane.crane import Crane
 
 load_dotenv()
-matplotlib.use("Agg")
+# 改为支持窗口显示的后端
+matplotlib.use("TkAgg")
 
 api_key = os.getenv("AZURE_KEY")
 azure_endpoint = os.getenv("AZURE_ENDPOINT")
@@ -40,11 +41,11 @@ QWEN_API_KEY = ""
 # =====================
 
 TEST_QUERIES = [
-    "A small crane with a pedestal, one boom 5 meters long pointing forward and a 10 meter wire pointing down, no movement.",
-    "A small crane with a pedestal, with a single boom 10 m long, luffed up to 45 degrees, and a 10 m wire pointing down, no movement.",
-    "Two-segment crane: pedestal, boom1 4 m at 30 degrees, boom2 6 m at 170 degrees, and a 1.5 m wire.",
-    "Knuckle-style crane: pedestal, boom1 3 m straight up, boom2 5 m at 45 degrees backward, boom3 7 m at 45 degrees forward, wire 2 m.",
-    "Heavy-duty base: pedestal mass 2000 kg with a 15 m horizontal boom and a 5 m wire.",
+    # "A small crane with a pedestal, one boom 5 meters long pointing forward and a 10 meter wire pointing down, no movement.",
+    "A small crane with a pedestal which is 2 meters long, with a single boom 10 m long, luffed up to 60 degrees, and a 7 m wire pointing down, no movement.",
+    # "Two-segment crane: pedestal, boom1 4 m at 30 degrees, boom2 6 m at 170 degrees, and a 1.5 m wire.",
+    # "Knuckle-style crane: pedestal, boom1 3 m straight up, boom2 5 m at 45 degrees backward, boom3 7 m at 45 degrees forward, wire 2 m.",
+    # "Heavy-duty base: pedestal mass 2000 kg with a 15 m horizontal boom and a 5 m wire.",
 ]
 
 
@@ -83,34 +84,24 @@ ONLY output JSON.
 """
 
 
-class AnimateCraneWithCamera(AnimateCrane):
-    def _update(self, frame):
-        time, crane = frame
-        artists = super()._update(frame)
-        azim = (time / self.t_end) * 360.0
-        elev = 25
-        self.ax.view_init(elev=elev, azim=azim)
-        return artists
-
-
 # =====================
-# Unified LLM Call
+# Unified LLM Call (REST API)
 # =====================
 
 
 def call_llm(prompt: str, backend: str = "azure") -> str:
-    """Unified LLM interface (Azure / Qwen)."""
+    """Unified LLM interface (Azure / Qwen) using REST API."""
 
     if backend == "azure":
-        client = AzureOpenAI(
-            api_version=AZURE_API_VERSION,
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=AZURE_API_KEY,
-        )
+        url = f"{AZURE_ENDPOINT}/openai/deployments/{AZURE_DEPLOYMENT}/chat/completions?api-version={AZURE_API_VERSION}"
 
-        response = client.chat.completions.create(
-            model=AZURE_DEPLOYMENT,
-            messages=[
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": AZURE_API_KEY,
+        }
+
+        payload = {
+            "messages": [
                 {
                     "role": "system",
                     "content": "You convert text into structured JSON describing a crane. Output only valid JSON.",
@@ -120,10 +111,11 @@ def call_llm(prompt: str, backend: str = "azure") -> str:
                     "content": prompt,
                 },
             ],
-            temperature=0.0,
-        )
+            "temperature": 0.0,
+        }
 
-        return response.choices[0].message.content
+        response = requests.post(url, headers=headers, json=payload)
+        return response.json()["choices"][0]["message"]["content"]
 
     elif backend == "qwen":
         headers = {
@@ -150,7 +142,7 @@ def call_llm(prompt: str, backend: str = "azure") -> str:
         return response.json()["choices"][0]["message"]["content"]
 
     else:
-        raise ValueError("Unsupported backend: {backend}")
+        raise ValueError(f"Unsupported backend: {backend}")
 
 
 # =====================
@@ -227,25 +219,102 @@ def rotating_camera_simulation(crane: Crane, dt=0.01, t_end=3.0):
         yield (time, crane)
 
 
-def render_crane_animation(crane, output="results/llm_crane_02.mp4"):
-    os.makedirs("results", exist_ok=True)
+def show_crane_static(crane: Crane, title: str = "Crane Static View"):
+    """Display a static image of the crane using matplotlib."""
 
-    animator = AnimateCraneWithCamera(
-        crane=crane,
-        movement=lambda c, dt, t_end: rotating_camera_simulation(c, dt, 3.0),
-        dt=0.01,
-        t_end=3.0,
-        figsize=(10, 8),
-        axes_lim=((-20, 20), (-20, 20), (0, 30)),
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    # Set axis limits based on crane geometry
+    ax.set_xlim(-20, 20)
+    ax.set_ylim(-20, 20)
+    ax.set_zlim(0, 10)
+
+    # Set labels
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Y (m)")
+    ax.set_zlabel("Z (m)")
+
+    # Draw booms
+    for b in crane.booms():
+        lw = {"pedestal": 10, "rope": 1}.get(b.name, 4)
+        ax.plot(
+            [b.origin[0], b.end[0]],
+            [b.origin[1], b.end[1]],
+            [b.origin[2], b.end[2]],
+            linewidth=lw,
+            label=b.name,
+        )
+
+    # Set view angle
+    ax.view_init(elev=20, azim=45)
+    ax.legend()
+    ax.set_title(title)
+
+    plt.show()
+
+
+def show_crane_animation(crane: Crane, title: str = "Crane Animation"):
+    """Display an animated crane using matplotlib (with rotating camera)."""
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    # Set axis limits
+    ax.set_xlim(-20, 20)
+    ax.set_ylim(-20, 20)
+    ax.set_zlim(0, 30)
+
+    # Set labels
+    ax.set_xlabel("X (m)")
+    ax.set_ylabel("Y (m)")
+    ax.set_zlabel("Z (m)")
+
+    # Store line objects
+    lines = []
+    for b in crane.booms():
+        lw = {"pedestal": 10, "rope": 1}.get(b.name, 4)
+        line = ax.plot(
+            [b.origin[0], b.end[0]],
+            [b.origin[1], b.end[1]],
+            [b.origin[2], b.end[2]],
+            linewidth=lw,
+            label=b.name,
+        )[0]
+        lines.append(line)
+
+    def init():
+        return lines
+
+    def update_frame(frame):
+        time, crane_updated = frame
+        for i, b in enumerate(crane_updated.booms()):
+            lines[i].set_data_3d(
+                [b.origin[0], b.end[0]],
+                [b.origin[1], b.end[1]],
+                [b.origin[2], b.end[2]],
+            )
+
+        # Rotate camera
+        azim = (time / 3.0) * 360.0
+        ax.view_init(elev=20, azim=azim)
+        ax.set_title(f"{title} ({time:.1f}s)")
+
+        return lines
+
+    # Keep reference to animation object to prevent garbage collection
+    ani = FuncAnimation(  # noqa: F841
+        fig,
+        update_frame,
+        frames=rotating_camera_simulation(crane, dt=0.01, t_end=3.0),
+        init_func=init,
         interval=10,
-        title="Rotating View Crane",
+        blit=False,
+        cache_frame_data=False,
     )
 
-    print("Rendering animation...")
-
-    animator.save_animation(output)
-
-    print(" Saved to {output}")
+    ax.legend()
+    plt.show()
 
 
 # =====================
@@ -254,11 +323,12 @@ def render_crane_animation(crane, output="results/llm_crane_02.mp4"):
 
 
 def main():
-    user_query = TEST_QUERIES[1]
+    user_query = TEST_QUERIES[0]
 
     prompt = CREATION_PROMPT + "\n\n" + user_query
 
     print("Query:", user_query)
+    print("\nCalling LLM...")
 
     result = call_llm(prompt, backend=BACKEND)
 
@@ -267,15 +337,26 @@ def main():
 
     try:
         spec = json.loads(result)
-    except Exception:
-        print("JSON parse failed")
+    except Exception as e:
+        print(f"JSON parse failed: {e}")
         return
 
     crane = build_crane_from_spec(spec)
+    print("Crane built successfully!")
 
-    render_crane_animation(crane)
+    # Choose visualization mode
+    print("\nVisualization options:")
+    print("1. Static image")
+    print("2. Animated view (rotating camera)")
 
-    print("Crane image saved.")
+    choice = input("Select option (1 or 2, default=1): ").strip() or "1"
+
+    if choice == "2":
+        print("Showing animated view...")
+        show_crane_animation(crane, "LLM-Generated Crane Animation")
+    else:
+        print("Showing static view...")
+        show_crane_static(crane, "LLM-Generated Crane Static View")
 
 
 if __name__ == "__main__":

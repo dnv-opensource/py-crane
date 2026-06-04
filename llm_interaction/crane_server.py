@@ -313,9 +313,9 @@ def animation_loop():
                             alpha=0.85,
                         )
 
-                    ax.set_xlim(-60, 60)
-                    ax.set_ylim(-60, 60)
-                    ax.set_zlim(0, 70)
+                    ax.set_xlim(-35, 35)
+                    ax.set_ylim(-35, 35)
+                    ax.set_zlim(0, 25)
                     ax.set_xlabel("X (m)")
                     ax.set_ylabel("Y (m)")
                     ax.set_zlabel("Z (m)")

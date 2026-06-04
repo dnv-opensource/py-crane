@@ -62,7 +62,7 @@ if __name__ == "__main__":
     print("\n Natural Language Command:\n")
     # user_command = "Lower the boom by 45 degrees in 5 seconds"
     # user_command = "Extend the boom by 20 meters in 5 seconds"
-    user_command = "Rotate the boom 40 degrees clockwise within 5 seconds"
+    user_command = "Rotate the boom 120 degrees clockwise within 10 seconds"
     print("User: {user_command}\n")
 
     # LLM parsing
@@ -81,9 +81,9 @@ if __name__ == "__main__":
         crane=crane,
         movement=lambda c, dt, t_end: llm_driven_simulation(c, commands, dt, t_end),
         dt=0.01,
-        t_end=5.0,
+        t_end=20.0,
         figsize=(6, 5),
-        axes_lim=((-60, 60), (-60, 60), (0, 70)),
+        axes_lim=((-40, 40), (-40, 40), (0, 20)),
         interval=10,
         title="LLM-Driven Crane Simulation",
     )
