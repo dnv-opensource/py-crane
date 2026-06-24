@@ -148,7 +148,7 @@ def _crane(wire_length: float = 0.5):
 def test_initial(crane: Crane):
     """Test the initial state of the crane."""
     # test general crane issues
-    assert isinstance(crane.to_crane_angle, Callable) # type: ignore [arg-type] # do not know about any other way
+    assert isinstance(crane.to_crane_angle, Callable)  # type: ignore [arg-type] # do not know about any other way
     assert np.allclose(crane.to_crane_angle(np.pi / 2 * np.array((1, 1, 1))), np.pi / 2 * np.array((1, -1, -1)))
     # test indexing of booms
     booms = [b.name for b in crane.booms()]
@@ -606,7 +606,7 @@ def test_pendulum(show: bool = False):
     ##?? Deactivated tests to be checked and updated
     _move_crane(c_pos=lambda t: -0.00005 * np.sin(wd * t), tau=tau, te=200, show=True, idx=5)
     return
-    _b2 = (2**2 / 9.81) ** 2
+    _b2 : float = (2**2 / 9.81) ** 2
     stable = np.degrees(np.arccos(np.sqrt(np.sqrt(_b2 + _b2**2 / 4) - _b2 / 2)))
     _move_crane(te=50, v0=0.1, c_pos=None, tau=20, show=True, idx=0)
     _move_crane(v0=0.0, c_pos=lambda t: 0.1 * t, tau=10, te=20.0, show=True, idx=1)

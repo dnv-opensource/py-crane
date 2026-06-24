@@ -110,9 +110,9 @@ def test_animation_sequence(crane: Crane, show: bool = False):
 
     _ = FuncAnimation(
         fig,
-        update,  
+        update,
         frames=animate_sequence(crane, seq=((p, -90), (b1, -45))),  # yields crane object as frame
-        init_func=init, 
+        init_func=init,
         interval=1000,
         blit=False,
         cache_frame_data=False,

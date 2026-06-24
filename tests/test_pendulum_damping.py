@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from py_crane.crane import Crane
 from py_crane.boom import Wire
+from py_crane.crane import Crane
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
