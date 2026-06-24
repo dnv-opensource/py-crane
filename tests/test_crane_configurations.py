@@ -215,5 +215,5 @@ if __name__ == "__main__":
     pillog = logging.getLogger("PIL")
     pillog.setLevel(logging.WARNING)
 
-    test_mobile_crane(show=True)
-    # test_knuckle_boom_crane(show=True)
+    # test_mobile_crane(show=True)
+    test_knuckle_boom_crane(show=True)

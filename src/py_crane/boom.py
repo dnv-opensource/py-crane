@@ -419,10 +419,21 @@ class Wire(Boom):
         length = self.length if isnan(self.newlen) else (self.length + self.newlen) / 2
         if q_factor is not None:
             self.q_factor = q_factor
-            self._damping_time = sqrt(length / 9.81 * (self.q_factor**2 + 0.25))
+            if q_factor >= 100:  # use approximate formula
+                self._damping_time = 2 * q_factor / sqrt(9.81 / length)
+            elif q_factor > 0:  # use the exact formula
+                self._damping_time = sqrt(1 + 4 * q_factor**2) / sqrt(9.81 / length)
+            else:
+                raise ValueError(f"The Q-factor shall be >0. Found {q_factor}") from None
         elif damping_time is not None:  # new damping time. Change q_factor
-            self.q_factor = sqrt(damping_time**2 * 9.81 / length - 0.25)
             self._damping_time = damping_time
+            w0_tau = sqrt(9.81 / length) * damping_time
+            if w0_tau >= 200:  # use approximation
+                self.q_factor = 0.5 * w0_tau
+            elif w0_tau > 1.0:
+                self.q_factor = 0.5 * sqrt(w0_tau**2 - 1)
+            else:
+                raise ValueError(f"Damping time < {sqrt(9.81 / length)} is not allowed. Found {damping_time}") from None
         return self._damping_time
 
     def pendulum_instantaneous(self):
@@ -545,7 +556,7 @@ class Wire(Boom):
                   relative to origin
                 r2 (float): the squared pendulum radius with respect to COM
                 g (float): gravitational acceleration as ndarray
-                s_v (ndarray): Velocity of thesuspension
+                s_v (ndarray): Velocity of the suspension
                 s_acc (ndarray): Acceleration of the suspension
                 l0 (float): start length of wire. Used only if wire length changes
                 dl_dt (float): Optional change of wire length through dt: l(t) = l0 + dl_dt* t
@@ -601,6 +612,7 @@ class Wire(Boom):
                     self.damping(q_factor=self.q_factor)  # re-calculate due to new length
                     self.boom[0] = self.newlen
                 # print(f"@{self.model.current_time}. rx:{r[0]} * vx:{v[0]}, s_v_x:{s_v[0]}, s_a_x:{s_acc[0]}.")
+
                 sol = solve_ivp(  # type: ignore
                     ivp_fun,
                     t_span=[0, dt],
@@ -623,10 +635,14 @@ class Wire(Boom):
 
                 if self.additional_checks and self.model.current_time > 0.0:  # check for free fall conditions
                     update_r2_rel_diff(abs(np.dot(position, position) / r2 - 1.0))
+
                 if dt >= self._damping_time:  # pendulum stops within dt
                     v = np.array((0, 0, 0), float)
                 else:
-                    v *= 1 - dt / self._damping_time  # see note
+                    if self.q_factor >= 100:
+                        v *= 1 - dt / (self._damping_time / 2)
+                    else:
+                        v *= sqrt(1 - 2 / (self._damping_time / 2) * dt)
                 # v -= s_v
                 # print("PEND", position[0], v[0], s_v[0], s_acc[0])
 

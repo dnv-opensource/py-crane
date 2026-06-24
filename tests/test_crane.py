@@ -474,7 +474,7 @@ def test_pendulum(show: bool = False):
         elif idx == 4:  # low frequency sine
             check_sin(list(time), x_pos, speed, 0.001, 0.1 * wd, tau=20)
         elif idx == 5:  # resonant oscillation
-            check_sin(list(time), x_pos, speed, 0.00005, wd, tau=20)
+            check_sin(list(time), x_pos, speed, 0.00003, wd, tau=20)
         elif idx == 6:  # high frequency sine
             check_sin(list(time), x_pos, speed, 0.00005, 10 * wd, tau=20)
         elif idx == 7:
@@ -604,7 +604,7 @@ def test_pendulum(show: bool = False):
     wd = np.sqrt(9.81 / 1.0 - gamma**2)
 
     ##?? Deactivated tests to be checked and updated
-    _b2 = (2**2 / 9.81) ** 2
+    _b2: float = (2**2 / 9.81) ** 2
     stable = np.degrees(np.arccos(np.sqrt(np.sqrt(_b2 + _b2**2 / 4) - _b2 / 2)))
     _move_crane(te=50, v0=0.1, c_pos=None, tau=20, show=True, idx=0)
     _move_crane(v0=0.0, c_pos=lambda t: 0.1 * t, tau=10, te=20.0, show=True, idx=1)
@@ -1023,7 +1023,7 @@ if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     logging.basicConfig(level=logging.DEBUG)
-    plt.set_loglevel(level="warning")
+    plt.set_loglevel(level="WARNING")
     parsolog = logging.getLogger("parso")
     parsolog.setLevel(logging.WARNING)
     pillog = logging.getLogger("PIL")
