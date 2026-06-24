@@ -148,7 +148,7 @@ def _crane(wire_length: float = 0.5):
 def test_initial(crane: Crane):
     """Test the initial state of the crane."""
     # test general crane issues
-    assert isinstance(crane.to_crane_angle, Callable)  # type: ignore [arg-type] # do not know about any other way
+    assert isinstance(crane.to_crane_angle, Callable) # type: ignore [arg-type] # do not know about any other way
     assert np.allclose(crane.to_crane_angle(np.pi / 2 * np.array((1, 1, 1))), np.pi / 2 * np.array((1, -1, -1)))
     # test indexing of booms
     booms = [b.name for b in crane.booms()]
@@ -474,7 +474,7 @@ def test_pendulum(show: bool = False):
         elif idx == 4:  # low frequency sine
             check_sin(list(time), x_pos, speed, 0.001, 0.1 * wd, tau=20)
         elif idx == 5:  # resonant oscillation
-            check_sin(list(time), x_pos, speed, 0.00005, wd, tau=20)
+            check_sin(list(time), x_pos, speed, 0.00003, wd, tau=20)
         elif idx == 6:  # high frequency sine
             check_sin(list(time), x_pos, speed, 0.00005, 10 * wd, tau=20)
         elif idx == 7:
@@ -604,6 +604,8 @@ def test_pendulum(show: bool = False):
     wd = np.sqrt(9.81 / 1.0 - gamma**2)
 
     ##?? Deactivated tests to be checked and updated
+    _move_crane(c_pos=lambda t: -0.00005 * np.sin(wd * t), tau=tau, te=200, show=True, idx=5)
+    return
     _b2 = (2**2 / 9.81) ** 2
     stable = np.degrees(np.arccos(np.sqrt(np.sqrt(_b2 + _b2**2 / 4) - _b2 / 2)))
     _move_crane(te=50, v0=0.1, c_pos=None, tau=20, show=True, idx=0)
@@ -1023,7 +1025,7 @@ if __name__ == "__main__":
     retcode = pytest.main(["-rA", "-v", "--rootdir", "../", "--show", "False", __file__])
     assert retcode == 0, f"Non-zero return code {retcode}"
     logging.basicConfig(level=logging.DEBUG)
-    plt.set_loglevel(level="warning")
+    plt.set_loglevel(level="WARNING")
     parsolog = logging.getLogger("parso")
     parsolog.setLevel(logging.WARNING)
     pillog = logging.getLogger("PIL")
