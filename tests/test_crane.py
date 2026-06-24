@@ -604,7 +604,7 @@ def test_pendulum(show: bool = False):
     wd = np.sqrt(9.81 / 1.0 - gamma**2)
 
     ##?? Deactivated tests to be checked and updated
-    _b2 : float = (2**2 / 9.81) ** 2
+    _b2: float = (2**2 / 9.81) ** 2
     stable = np.degrees(np.arccos(np.sqrt(np.sqrt(_b2 + _b2**2 / 4) - _b2 / 2)))
     _move_crane(te=50, v0=0.1, c_pos=None, tau=20, show=True, idx=0)
     _move_crane(v0=0.0, c_pos=lambda t: 0.1 * t, tau=10, te=20.0, show=True, idx=1)
