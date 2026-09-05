@@ -1,0 +1,17 @@
+﻿py\_crane.enums
+===============
+
+.. automodule:: py_crane.enums
+   :members:
+   :exclude-members: Change,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Change
+   

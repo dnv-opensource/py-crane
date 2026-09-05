@@ -1,0 +1,17 @@
+﻿py\_crane.crane
+===============
+
+.. automodule:: py_crane.crane
+   :members:
+   :exclude-members: Crane,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      Crane
+   

@@ -1,0 +1,29 @@
+AnimateCrane
+============
+
+.. currentmodule:: py_crane.animation
+
+.. autoclass:: AnimateCrane
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~AnimateCrane.__init__
+      ~AnimateCrane.close
+      ~AnimateCrane.do_animation
+      ~AnimateCrane.init_fig
+      ~AnimateCrane.save_animation
+      ~AnimateCrane.update
+   
+   
+
+
+   
+   
+   

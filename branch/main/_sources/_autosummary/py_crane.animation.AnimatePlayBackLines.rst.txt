@@ -1,0 +1,27 @@
+AnimatePlayBackLines
+====================
+
+.. currentmodule:: py_crane.animation
+
+.. autoclass:: AnimatePlayBackLines
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~AnimatePlayBackLines.__init__
+      ~AnimatePlayBackLines.do_animation
+      ~AnimatePlayBackLines.init_fig
+      ~AnimatePlayBackLines.update
+   
+   
+
+
+   
+   
+   
