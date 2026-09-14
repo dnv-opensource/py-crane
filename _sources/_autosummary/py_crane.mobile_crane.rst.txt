@@ -1,0 +1,17 @@
+﻿py\_crane.mobile\_crane
+=======================
+
+.. automodule:: py_crane.mobile_crane
+   :members:
+   :exclude-members: MobileCrane,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      MobileCrane
+   

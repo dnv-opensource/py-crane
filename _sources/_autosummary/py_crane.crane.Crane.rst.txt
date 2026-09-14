@@ -1,0 +1,42 @@
+Crane
+=====
+
+.. currentmodule:: py_crane.crane
+
+.. autoclass:: Crane
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Crane.__init__
+      ~Crane.add_boom
+      ~Crane.boom_by_name
+      ~Crane.booms
+      ~Crane.calc_statics_dynamics
+      ~Crane.do_step
+      ~Crane.rot
+      ~Crane.rotate
+      ~Crane.to_crane_angle_default
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Crane.angular
+      ~Crane.boom0
+      ~Crane.d_angular
+      ~Crane.position
+      ~Crane.velocity
+      ~Crane.to_crane_angle
+   
+   

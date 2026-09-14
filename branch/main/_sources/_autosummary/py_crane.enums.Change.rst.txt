@@ -1,0 +1,26 @@
+Change
+======
+
+.. currentmodule:: py_crane.enums
+
+.. autoclass:: Change
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Change.POS
+      ~Change.ROT
+      ~Change.ALL
+   
+   

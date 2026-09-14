@@ -1,0 +1,40 @@
+Boom
+====
+
+.. currentmodule:: py_crane.boom
+
+.. autoclass:: Boom
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~Boom.__init__
+      ~Boom.boom_setter
+      ~Boom.calc_statics_dynamics
+      ~Boom.rot
+      ~Boom.update_child
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~Boom.c_m
+      ~Boom.c_m_sub
+      ~Boom.end
+      ~Boom.force
+      ~Boom.length
+      ~Boom.model
+      ~Boom.name
+      ~Boom.torque
+   
+   
