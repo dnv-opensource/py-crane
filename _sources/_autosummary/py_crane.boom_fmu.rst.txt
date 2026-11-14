@@ -1,0 +1,18 @@
+﻿py\_crane.boom\_fmu
+===================
+
+.. automodule:: py_crane.boom_fmu
+   :members:
+   :exclude-members: BoomFMU,WireFMU,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      BoomFMU
+      WireFMU
+   

@@ -1,0 +1,673 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Wire" href="py_crane.boom.Wire.html"><link rel="prev" title="py_crane.boom" href="py_crane.boom.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Boom - py-crane 0.3.1</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx_argparse_cli.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">py-crane 0.3.1</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">py-crane 0.3.1</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../README.html">Introduction</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../api.html">API Reference</a><input aria-label="Toggle navigation of API Reference" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current has-children"><a class="reference internal" href="../py_crane.html">py-crane package</a><input aria-label="Toggle navigation of py-crane package" checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="py_crane.crane.html">py_crane.crane</a><input aria-label="Toggle navigation of py_crane.crane" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.crane.Crane.html">Crane</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="py_crane.crane_fmu.html">py_crane.crane_fmu</a><input aria-label="Toggle navigation of py_crane.crane_fmu" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.crane_fmu.CraneFMU.html">CraneFMU</a></li>
+</ul>
+</li>
+<li class="toctree-l3 current has-children"><a class="reference internal" href="py_crane.boom.html">py_crane.boom</a><input aria-label="Toggle navigation of py_crane.boom" checked="" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l4 current current-page"><a class="current reference internal" href="#">Boom</a></li>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.boom.Wire.html">Wire</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="py_crane.boom_fmu.html">py_crane.boom_fmu</a><input aria-label="Toggle navigation of py_crane.boom_fmu" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.boom_fmu.BoomFMU.html">BoomFMU</a></li>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.boom_fmu.WireFMU.html">WireFMU</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="py_crane.mobile_crane.html">py_crane.mobile_crane</a><input aria-label="Toggle navigation of py_crane.mobile_crane" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.mobile_crane.MobileCrane.html">MobileCrane</a></li>
+</ul>
+</li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="py_crane.enums.html">py_crane.enums</a><input aria-label="Toggle navigation of py_crane.enums" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l4"><a class="reference internal" href="py_crane.enums.Change.html">Change</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../CHANGELOG.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../STYLEGUIDE.html">Style Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../LICENSE.html">LICENSE</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/_autosummary/py_crane.boom.Boom.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="boom">
+<h1>Boom<a class="headerlink" href="#boom" title="Link to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="py_crane.boom.Boom">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">py_crane.boom.</span></span><span class="sig-name descname"><span class="pre">Boom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="py_crane.crane.Crane.html#py_crane.crane.Crane" title="py_crane.crane.Crane"><span class="pre">py_crane.crane.Crane</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="positional-only-separator o"><abbr title="Positional-only parameter separator (PEP 570)"><span class="pre">/</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">anchor0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#py_crane.boom.Boom" title="py_crane.boom.Boom"><span class="pre">Boom</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass_center</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_factor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#py_crane.boom.Boom" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Basic Boom model object, representing one element of a crane,
+modelled as stiff rod with length, mass and mass-center.</p>
+<div class="admonition" id="spec-0">
+<p class="admonition-title">Assumption</p>
+<p>All booms of the crane are completely stiff, excluding bending, stretching and vibration
+modes of motion. This includes also loose connections,
+i.e. the wire is assumed straight and without stretch and torsion.</p>
+</div>
+<div class="admonition" id="spec-1">
+<p class="admonition-title">Assumption</p>
+<p>Per default, the mass center of a boom is located at the geometric center of the boom.
+This can be changed using the tuple form of the <code class="xref py py-attr docutils literal notranslate"><span class="pre">mass_center</span></code> parameter.</p>
+</div>
+<div class="admonition" id="spec-2">
+<p class="admonition-title">Limitation</p>
+<p>The degrees of freedom for the boom (possible ranges in which changes of parameters are allowed)
+cannot be directly defined within the basic Boom object.
+These can be defined as part of the <cite>Variable</cite> definitions when packaging a crane as FMU,
+see <a class="reference internal" href="py_crane.crane_fmu.html"><span class="doc">py_crane.crane_fmu</span></a> and <a class="reference internal" href="py_crane.boom_fmu.html"><span class="doc">py_crane.boom_fmu</span></a>.
+Alternatively the control module from the package <code class="docutils literal notranslate"><span class="pre">component-model</span></code> can be used to define control goals,
+which also includes limits on value, change of value and acceleration of value.</p>
+</div>
+<div class="admonition" id="spec-3">
+<p class="admonition-title">Assumption</p>
+<p>All units are assumed as basic units (meter, radian, kg).
+Additional display units can be defined when packaging a crane as FMU.</p>
+</div>
+<p>Alternative to instantiating a Boom as <a class="reference internal" href="#py_crane.boom.Boom" title="py_crane.boom.Boom"><code class="xref py py-class docutils literal notranslate"><span class="pre">Boom</span></code></a> (…),
+<a class="reference internal" href="py_crane.crane.Crane.html#py_crane.crane.Crane.add_boom" title="py_crane.crane.Crane.add_boom"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Crane.add_boom()</span></code></a> of the related crane can be called (recommended).
+In this case the parameters <code class="docutils literal notranslate"><span class="pre">model</span></code> and <code class="docutils literal notranslate"><span class="pre">anchor0</span></code> to <a class="reference internal" href="#py_crane.boom.Boom" title="py_crane.boom.Boom"><code class="xref py py-class docutils literal notranslate"><span class="pre">Boom</span></code></a> shall not be included (are automatically added).</p>
+<p>There are two fundamentally different types of booms</p>
+<dl class="simple">
+<dt>stiff connection boom (<code class="xref py py-attr docutils literal notranslate"><span class="pre">q_factor</span></code> =0):</dt><dd><p>The spherical angles with respect to the previous boom can only be changed through new settings.</p>
+</dd>
+<dt>loose connection boom(<code class="xref py py-attr docutils literal notranslate"><span class="pre">q_factor</span></code> &gt;0):</dt><dd><p>The joint to the previous boom is loose and the boom can move freely in all spherical directions,
+i.e. it represents a wire (with load), exhibiting pendulum movement with respect to the local center of mass.
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">q_factor</span></code> serves at the same time as a definition of the pendulum damping.</p>
+</dd>
+</dl>
+<div class="admonition" id="spec-4">
+<p class="admonition-title">Limitation</p>
+<p>The wire is always streched (stiff) and free-falling movement of the load
+(e.g. due to high accelerations of parent boom or length changes) lead to error messages.</p>
+</div>
+<p>Basic boom movements are</p>
+<dl class="simple">
+<dt>length change, i.e. <a class="reference internal" href="#py_crane.boom.Boom.boom_setter" title="py_crane.boom.Boom.boom_setter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">boom_setter()</span></code></a> ( (new-length, None, None))</dt><dd><p>instantaneously sets a new length to the boom and updates all children booms so that they are properly connected.</p>
+</dd>
+<dt>rotation, i.e. <cite>.boom_setter</cite> ( (None, new-polar, new-azimuth))</dt><dd><p>instantaneously rotates the boom around its origin.
+The reference direction is the direction of the parent boom (i.e. as if the parent boom was in z-direction).
+Successively all child booms are updated (i.e. rotated accordingly) to obey the stiffness of the crane.
+Note that loose connection booms are not allowed to rotate actively,
+since that would interfere with pendulum movement.</p>
+</dd>
+<dt>mass change, i.e. <cite>.mass</cite>:</dt><dd><p>instantanteous mass change of boom (e.g. add or remove load).
+Note that instantaneous changes make sense in this case, since loads are changed instantaneously
+and since wire bending is not modelled.</p>
+</dd>
+</dl>
+<p>After any movement</p>
+<ul class="simple">
+<li><p>the internal variables (center of mass, positions, etc.) are re-calculated
+using <a class="reference internal" href="#py_crane.boom.Boom.calc_statics_dynamics" title="py_crane.boom.Boom.calc_statics_dynamics"><code class="xref py py-meth docutils literal notranslate"><span class="pre">calc_statics_dynamics()</span></code></a>. If <cite>dt=None</cite> instantaneous changes are assumed.</p></li>
+<li><p>the attached booms are moved in accordance</p></li>
+<li><p>and the center of mass of the sub-system (the boom with attached booms) is re-calculated.</p></li>
+<li><p>Finally the parent booms are informed about the change of the sub-system center of mass,
+leading to re-calculation of their internal variables.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>initialization variables are designed for easy management of parameters,
+while derived internal variables are more complex (often 3D vectors)</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<a class="reference internal" href="py_crane.crane.Crane.html#py_crane.crane.Crane" title="py_crane.crane.Crane"><em>py_crane.crane.Crane</em></a>) – The model object owning the boom</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – The short name of the boom (unique within crane)</p></li>
+<li><p><strong>description</strong> (<em>str</em>) – An optional description of the boom</p></li>
+<li><p><strong>anchor0</strong> (<a class="reference internal" href="#py_crane.boom.Boom" title="py_crane.boom.Boom"><em>Boom</em></a>) – the boom object to which this Boom is attached.
+There is exactly one boom where this is set to None, which is the crane <cite>fixation</cite>
+and which is automatically provided by the crane, i.e. for real booms this is never None.</p></li>
+<li><p><strong>mass</strong> (<em>float</em>) – Parameter denoting the mass of the boom in kg.
+For most booms this is fixed, but when modelling loads as part of the (last) boom this can change.</p></li>
+<li><p><strong>mass_center</strong> (<em>float</em><em>,</em><em>tuple</em>) – Parameter denoting the position of the center of mass of the boom,
+provided as portion of the length (as float).
+Optionally the absolute displacements in x- and y-direction (assuming the boom in z-direction) can be added
+e.g. (0.5,-0.5, 1): (in m) halfway down the boom displaced 0.5m in the -x direction and 1m in the y direction</p></li>
+<li><p><strong>boom</strong> (<em>tuple</em>) – <dl>
+<dt>A tuple defining the boom relative to its parent in spherical (ISO 80000) coordinates.</dt><dd><p>From the parent boom the following attributes are automatically inferred:</p>
+<ul>
+<li><p>origin: end of the parent boom =&gt; cartesian coordinate of the base point of the boom</p></li>
+<li><p>pole axis: direction vector of the parent boom =&gt; local cartesian z-axis</p></li>
+<li><p>reference direction in equator plane:
+crane x-direction or azimuth angle of connecting boom =&gt; local cartesian x-axis</p></li>
+</ul>
+<p>The boom is then defined in local polar coordinates:</p>
+<ul>
+<li><p>length: the length of the boom (in m)</p></li>
+<li><p>polar: a rotation angle for a rotation around the negative y-axis (away from z-axis) against the clock.</p></li>
+<li><p>azimuth: a rotation angle for a rotation around the positive z-axis (away from the x-axis) against the clock.</p></li>
+</ul>
+</dd>
+<dt>:: note..: The boom is used to keep length and local coordinate system up-to-date,</dt><dd><p>while the active work variables are the cartesian origin, direction and length</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>q_factor</strong> (<em>float</em>) – <p>optional possibility to implement a loose connection between booms.</p>
+<ul>
+<li><p>if q_factor=0.0, the connection to the parent boom is stiff according to the boom angle settings</p></li>
+<li><p>if q_factor &gt; 0, the crane boom (the wire) is implemented as a stiff rod
+with a loose connection hanging from the parent boom.</p></li>
+<li><p>The q_factor denotes the dimensionless quality factor (energy stored/energy lost per radian),
+which is also equal to
+<span class="math notranslate nohighlight">\(2 \ln( A_i/A_{i+1}) = \tau \sqrt{\omega_0^2 - \gamma^2}\)</span>,
+<span class="math notranslate nohighlight">\(\gamma = 1/(2 \tau)\)</span>,
+with
+<span class="math notranslate nohighlight">\(\tau &gt; 1/(2\omega_0)\)</span>
+and
+<cite>A</cite>: Amplitude,
+<span class="math notranslate nohighlight">\(\omega_0=\sqrt{g/L}\)</span>: natural angular frequency  of pendulum,
+<span class="math notranslate nohighlight">\(\tau\)</span>: characteristic damping time
+<span class="math notranslate nohighlight">\(\gamma\)</span>: pendulum damping.
+This does not cover critically and over-damped systems, which are in any case not realistic for crane wires).
+In many systems the <cite>q_factor</cite> is a fixed parameter, but for testing purposes and if the wire length changes,
+<a class="reference internal" href="py_crane.boom.Wire.html#py_crane.boom.Wire.damping" title="py_crane.boom.Wire.damping"><code class="xref py py-meth docutils literal notranslate"><span class="pre">damping()</span></code></a> is included, which allows changing of related parameters in a consistent way.</p></li>
+</ul>
+</p></li>
+<li><p><strong>limits</strong> (<em>tuple</em>) – Optional tuple of control limits for active boom control. See ControlLimits</p></li>
+<li><p><strong>tolerance</strong> (<em>float</em>) – Accuracy during pendulum calculations</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This offers basic functionality. Variable changes and related updates are performed directly on the variables</p>
+</div>
+<div class="admonition" id="spec-5">
+<p class="admonition-title">Assumption</p>
+<p>Center of mass: <cite>_c_m</cite> is the local mass-center measured relative to origin. <cite>_c_m_sub</cite> is a global quantity</p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="py_crane.crane.Crane.html#py_crane.crane.Crane" title="py_crane.crane.Crane"><span class="pre">py_crane.crane.Crane</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="positional-only-separator o"><abbr title="Positional-only parameter separator (PEP 570)"><span class="pre">/</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">anchor0</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#py_crane.boom.Boom" title="py_crane.boom.Boom"><span class="pre">Boom</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mass_center</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boom</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">(1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">q_factor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#py_crane.boom.Boom.__init__" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="table-wrapper autosummary longtable docutils container">
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.__init__" title="py_crane.boom.Boom.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(model, name, /[, description, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#py_crane.boom.Boom.boom_setter" title="py_crane.boom.Boom.boom_setter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">boom_setter</span></code></a>(val[, ch])</p></td>
+<td><p>Set length and angles of boom (if allowed) and ensure consistency with other booms.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.calc_statics_dynamics" title="py_crane.boom.Boom.calc_statics_dynamics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calc_statics_dynamics</span></code></a>([dt])</p></td>
+<td><p>After any movement the local c_m and the c_m of connected booms have changed.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#py_crane.boom.Boom.rot" title="py_crane.boom.Boom.rot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">rot</span></code></a>([newval])</p></td>
+<td><p>Access the rotation object from outside the boom.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.update_child" title="py_crane.boom.Boom.update_child"><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_child</span></code></a>([change])</p></td>
+<td><p>Update this boom after the parent boom has changed length, angles, position or rotation.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Attributes</p>
+<div class="table-wrapper autosummary longtable docutils container">
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.c_m" title="py_crane.boom.Boom.c_m"><code class="xref py py-obj docutils literal notranslate"><span class="pre">c_m</span></code></a></p></td>
+<td><p>Updates and returns the local center of mass point relative to self.origin.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#py_crane.boom.Boom.c_m_sub" title="py_crane.boom.Boom.c_m_sub"><code class="xref py py-obj docutils literal notranslate"><span class="pre">c_m_sub</span></code></a></p></td>
+<td><p>Return the system center of mass as absolute position The _c_m_sub needs to be calculated/updated using calc_statics_dynamics.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.end" title="py_crane.boom.Boom.end"><code class="xref py py-obj docutils literal notranslate"><span class="pre">end</span></code></a></p></td>
+<td><p>Calculate the cartesian coordinates of the end of the boom from .origin, .length and .direction.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#py_crane.boom.Boom.force" title="py_crane.boom.Boom.force"><code class="xref py py-obj docutils literal notranslate"><span class="pre">force</span></code></a></p></td>
+<td><p>Calculate the force resulting from linear acceleration.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.length" title="py_crane.boom.Boom.length"><code class="xref py py-obj docutils literal notranslate"><span class="pre">length</span></code></a></p></td>
+<td><p>Extract the length parameter from .boom.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#py_crane.boom.Boom.model" title="py_crane.boom.Boom.model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model</span></code></a></p></td>
+<td><p>Get the Crane object which this boom is connected to.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#py_crane.boom.Boom.name" title="py_crane.boom.Boom.name"><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></a></p></td>
+<td><p>Get the unique (within the crane) name of the boom.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#py_crane.boom.Boom.torque" title="py_crane.boom.Boom.torque"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torque</span></code></a></p></td>
+<td><p>Calculate the torque from the CoM of this boom with respect to the fixation.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.boom_setter">
+<span class="sig-name descname"><span class="pre">boom_setter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#py_crane.boom.Boom.boom_setter" title="Link to this definition">¶</a></dt>
+<dd><p>Set length and angles of boom (if allowed) and ensure consistency with other booms.
+This is called from the general setter function after the units and range are checked
+and before the variable value itself is changed within the model.</p>
+<dl class="simple">
+<dt>Note: boom_setter initiates an internal change in the crane, which then affects ._rot, .direction, .length</dt><dd><p>External changes (parent booms) do not affect .boom.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>val</strong> (<em>array-like</em>) – new value of boom. Elements of the array can be set to None (keep value)</p></li>
+<li><p><strong>ch</strong> (<em>int</em>) – track change type or set it initially to force a type of change,</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.calc_statics_dynamics">
+<span class="sig-name descname"><span class="pre">calc_statics_dynamics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#py_crane.boom.Boom.calc_statics_dynamics" title="Link to this definition">¶</a></dt>
+<dd><p>After any movement the local c_m and the c_m of connected booms have changed.
+Thus, after the movement has been transmitted to connected booms, the _c_m_sub of all booms can be updated in reverse order.
+The local _c_m_sub is updated by calling this function, assuming that child booms are updated.</p>
+<p>Since there might happen multiple movements within a time interval, the function is called explicitly, i.e. from crane.
+Note that c_m_sub includes all child booms, but the wire (as this can swing).
+For the wire, the function .update_child() is not run, so that neither .origin nor .rot or .direction is updated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dt</strong> (<em>float</em>) – for dynamic calculations, the time for the movement must be provided
+and is then used to calculate torque and force</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.rot">
+<span class="sig-name descname"><span class="pre">rot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">newval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Rotation</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Rotation</span></span></span><a class="headerlink" href="#py_crane.boom.Boom.rot" title="Link to this definition">¶</a></dt>
+<dd><p>Access the rotation object from outside the boom.
+Since this is a function for the model, we make it a function also here.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.update_child">
+<span class="sig-name descname"><span class="pre">update_child</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">change</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="py_crane.enums.Change.html#py_crane.enums.Change" title="py_crane.enums.Change"><span class="pre">Change</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Change.ALL</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#py_crane.boom.Boom.update_child" title="Link to this definition">¶</a></dt>
+<dd><p>Update this boom after the parent boom has changed length, angles, position or rotation.</p>
+<p>change(Change) = Change.ALL: Possibility to specify which type of change is performed. Default: ALL</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.c_m">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">c_m</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#py_crane.boom.Boom.c_m" title="Link to this definition">¶</a></dt>
+<dd><p>Updates and returns the local center of mass point relative to self.origin.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.c_m_sub">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">c_m_sub</span></span><a class="headerlink" href="#py_crane.boom.Boom.c_m_sub" title="Link to this definition">¶</a></dt>
+<dd><p>Return the system center of mass as absolute position
+The _c_m_sub needs to be calculated/updated using calc_statics_dynamics.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.end">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">end</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">float64</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#py_crane.boom.Boom.end" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the cartesian coordinates of the end of the boom from .origin, .length and .direction.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.force">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">force</span></span><a class="headerlink" href="#py_crane.boom.Boom.force" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the force resulting from linear acceleration.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.length">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">length</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">floating</span></span><a class="headerlink" href="#py_crane.boom.Boom.length" title="Link to this definition">¶</a></dt>
+<dd><p>Extract the length parameter from .boom.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.model">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">model</span></span><a class="headerlink" href="#py_crane.boom.Boom.model" title="Link to this definition">¶</a></dt>
+<dd><p>Get the Crane object which this boom is connected to.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.name">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#py_crane.boom.Boom.name" title="Link to this definition">¶</a></dt>
+<dd><p>Get the unique (within the crane) name of the boom.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="py_crane.boom.Boom.torque">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">torque</span></span><a class="headerlink" href="#py_crane.boom.Boom.torque" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the torque from the CoM of this boom with respect to the fixation.
+Note that this is in practice only calculated for the load and the rest of the crane.
+These two are calculated separately, since the load exhibits a pendulum action.
+The Torque is always calculated relative to the crane position.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="py_crane.boom.Wire.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Wire</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="py_crane.boom.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">py_crane.boom</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, DNV AS. All rights reserved.
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Boom</a><ul>
+<li><a class="reference internal" href="#py_crane.boom.Boom"><code class="docutils literal notranslate"><span class="pre">Boom</span></code></a><ul>
+<li><a class="reference internal" href="#py_crane.boom.Boom.__init__"><code class="docutils literal notranslate"><span class="pre">Boom.__init__()</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.boom_setter"><code class="docutils literal notranslate"><span class="pre">Boom.boom_setter()</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.calc_statics_dynamics"><code class="docutils literal notranslate"><span class="pre">Boom.calc_statics_dynamics()</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.rot"><code class="docutils literal notranslate"><span class="pre">Boom.rot()</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.update_child"><code class="docutils literal notranslate"><span class="pre">Boom.update_child()</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.c_m"><code class="docutils literal notranslate"><span class="pre">Boom.c_m</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.c_m_sub"><code class="docutils literal notranslate"><span class="pre">Boom.c_m_sub</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.end"><code class="docutils literal notranslate"><span class="pre">Boom.end</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.force"><code class="docutils literal notranslate"><span class="pre">Boom.force</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.length"><code class="docutils literal notranslate"><span class="pre">Boom.length</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.model"><code class="docutils literal notranslate"><span class="pre">Boom.model</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.name"><code class="docutils literal notranslate"><span class="pre">Boom.name</span></code></a></li>
+<li><a class="reference internal" href="#py_crane.boom.Boom.torque"><code class="docutils literal notranslate"><span class="pre">Boom.torque</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=4621528c"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    </body>
+</html>
