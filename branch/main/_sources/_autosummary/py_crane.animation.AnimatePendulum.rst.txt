@@ -1,0 +1,28 @@
+AnimatePendulum
+===============
+
+.. currentmodule:: py_crane.animation
+
+.. autoclass:: AnimatePendulum
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~AnimatePendulum.__init__
+      ~AnimatePendulum.do_animation
+      ~AnimatePendulum.frame_gen
+      ~AnimatePendulum.init_fig
+      ~AnimatePendulum.update
+   
+   
+
+
+   
+   
+   
