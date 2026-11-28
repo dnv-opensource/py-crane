@@ -1,0 +1,20 @@
+﻿py\_crane.animation
+===================
+
+.. automodule:: py_crane.animation
+   :members:
+   :exclude-members: AnimateCrane,AnimatePendulum,AnimatePlayBackLines,CraneMovement,
+   
+
+
+   
+   .. rubric:: Classes
+   .. autosummary::
+      :toctree:
+      :template: custom-class.rst
+   
+      AnimateCrane
+      AnimatePendulum
+      AnimatePlayBackLines
+      CraneMovement
+   

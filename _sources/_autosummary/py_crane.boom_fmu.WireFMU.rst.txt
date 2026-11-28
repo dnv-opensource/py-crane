@@ -1,0 +1,44 @@
+WireFMU
+=======
+
+.. currentmodule:: py_crane.boom_fmu
+
+.. autoclass:: WireFMU
+   :members:
+   :show-inheritance:
+
+
+   
+   .. automethod:: __init__
+   
+   .. rubric:: Methods
+   .. autosummary::
+   
+      ~WireFMU.__init__
+      ~WireFMU.boom_setter
+      ~WireFMU.calc_statics_dynamics
+      ~WireFMU.damping
+      ~WireFMU.pendulum
+      ~WireFMU.pendulum_instantaneous
+      ~WireFMU.pendulum_relax
+      ~WireFMU.rot
+      ~WireFMU.update_child
+   
+   
+
+
+   
+   
+   .. rubric:: Attributes
+   .. autosummary::
+   
+      ~WireFMU.c_m
+      ~WireFMU.c_m_sub
+      ~WireFMU.end
+      ~WireFMU.force
+      ~WireFMU.length
+      ~WireFMU.model
+      ~WireFMU.name
+      ~WireFMU.torque
+   
+   
